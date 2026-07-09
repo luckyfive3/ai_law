@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     mongo_min_pool_size: int = 10
 
     # ── JWT ──
-    jwt_secret: str = "dev-jwt-secret-change-in-production"
+    jwt_secret: str = "dev-jwt-secret-change-in-production-32chars"
     jwt_access_ttl: int = 86400        # 24 小时（秒）
     jwt_refresh_ttl: int = 604800      # 7 天（秒）
 
@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     domain: str = "localhost"
 
     class Config:
-        env_file = ".env"
+        env_file = str(Path(__file__).parent / ".env")
         env_file_encoding = "utf-8"
         extra = "allow"
 

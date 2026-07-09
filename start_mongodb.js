@@ -2,13 +2,19 @@
  * 使用 mongodb-memory-server 启动本地 MongoDB 实例
  * 数据持久化到 mongodb_data 目录
  */
+const fs = require('fs');
+const path = require('path');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 
+const dbPath = path.join(__dirname, 'mongodb_data');
+
 async function startMongo() {
+  fs.mkdirSync(dbPath, { recursive: true });
+
   const mongod = await MongoMemoryServer.create({
     instance: {
       port: 27017,
-      dbPath: 'c:/Users/luck/Desktop/ai_law/ai_law/mongodb_data',
+      dbPath,
       storageEngine: 'wiredTiger',
     },
     binary: {

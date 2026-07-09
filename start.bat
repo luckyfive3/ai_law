@@ -18,21 +18,44 @@ set "ROOT=%~dp0"
 set "ROOT=%ROOT:~0,-1%"
 cd /d "%ROOT%"
 
-:: ── 检查 Python ──
-where python >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [ERROR] Python not found, please install Python 3.11+
+:: ── Conda 环境名称（根据实际情况修改） ──
+set "CONDA_ENV=law"
+
+:: ── 自动检测 Python（优先 conda 环境，回退系统 Python） ──
+set "PYTHON_CMD="
+set "CONDA_PATH="
+
+:: 查找 conda 安装路径（支持 Anaconda/Miniconda）
+for %%p in (anaconda3 Anaconda3 miniconda3 Miniconda3) do (
+    if exist "%USERPROFILE%\%%p\Scripts\conda.exe" (
+        set "CONDA_PATH=%USERPROFILE%\%%p"
+    )
+)
+
+if defined CONDA_PATH (
+    conda run -n %CONDA_ENV% python --version >nul 2>&1
+    if %errorlevel% equ 0 (
+        set "PYTHON_CMD=conda run -n %CONDA_ENV% python"
+    )
+)
+if not defined PYTHON_CMD (
+    where python >nul 2>&1
+    if %errorlevel% equ 0 (set "PYTHON_CMD=python")
+)
+if not defined PYTHON_CMD (
+    echo [ERROR] Python not found. Install Python 3.11+ or: conda create -n %CONDA_ENV% python=3.11
     pause
     exit /b 1
 )
 
-:: ── 检查 Node.js ──
-where node >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [ERROR] Node.js not found, please install Node.js
-    pause
-    exit /b 1
+:: 构建新窗口中的启动命令前缀（自动激活 conda 环境）
+if defined CONDA_PATH (
+    set "WIN_CMD=cmd /k call "%CONDA_PATH%\Scripts\activate.bat" ^&^& conda activate %CONDA_ENV% ^&^&"
+) else (
+    set "WIN_CMD=cmd /k"
 )
+
+echo [INFO] Python: %PYTHON_CMD%
 
 :: ── 解析命令参数 ──
 set "CMD=%~1"
@@ -82,7 +105,7 @@ goto menu
 :cmd_install
 echo.
 echo [1/2] Installing backend dependencies...
-pip install -r "%ROOT%\backend\requirements.txt"
+%PYTHON_CMD% -m pip install -r "%ROOT%\backend\requirements.txt"
 if %errorlevel% neq 0 (
     echo [ERROR] Backend dependency installation failed
     goto install_end
@@ -91,7 +114,7 @@ echo [1/2] Backend dependencies OK
 
 echo.
 echo [2/2] Installing frontend dependencies...
-pip install -r "%ROOT%\frontend\requirements.txt"
+%PYTHON_CMD% -m pip install -r "%ROOT%\frontend\requirements.txt"
 if %errorlevel% neq 0 (
     echo [ERROR] Frontend dependency installation failed
     goto install_end
@@ -122,13 +145,21 @@ echo        MongoDB started (port 27017)
 
 :: --- Backend ---
 echo [2/3] Starting Backend...
-start "AI-Law-Backend" cmd /k "cd /d "%ROOT%\backend" && title Backend :8080 && python main.py"
+if defined CONDA_PATH (
+    start "AI-Law-Backend" cmd /k call %CONDA_PATH%\Scripts\activate.bat ^&^& conda activate %CONDA_ENV% ^&^& cd /d %ROOT%\backend ^&^& title Backend :8080 ^&^& python main.py
+) else (
+    start "AI-Law-Backend" cmd /k cd /d %ROOT%\backend ^&^& title Backend :8080 ^&^& python main.py
+)
 timeout /t 4 >nul
 echo        Backend started (http://localhost:8080)
 
 :: --- Frontend ---
 echo [3/3] Starting Frontend...
-start "AI-Law-Frontend" cmd /k "cd /d "%ROOT%\frontend" && title Frontend :3000 && python main.py"
+if defined CONDA_PATH (
+    start "AI-Law-Frontend" cmd /k call %CONDA_PATH%\Scripts\activate.bat ^&^& conda activate %CONDA_ENV% ^&^& cd /d %ROOT%\frontend ^&^& title Frontend :3000 ^&^& python main.py
+) else (
+    start "AI-Law-Frontend" cmd /k cd /d %ROOT%\frontend ^&^& title Frontend :3000 ^&^& python main.py
+)
 timeout /t 2 >nul
 echo        Frontend started (http://localhost:3000)
 
@@ -157,7 +188,11 @@ echo Starting Backend (port 8080)...
 :: MongoDB is required by backend
 call :ensure_mongodb
 
-start "AI-Law-Backend" cmd /k "cd /d "%ROOT%\backend" && title Backend :8080 && python main.py"
+if defined CONDA_PATH (
+    start "AI-Law-Backend" cmd /k call %CONDA_PATH%\Scripts\activate.bat ^&^& conda activate %CONDA_ENV% ^&^& cd /d %ROOT%\backend ^&^& title Backend :8080 ^&^& python main.py
+) else (
+    start "AI-Law-Backend" cmd /k cd /d %ROOT%\backend ^&^& title Backend :8080 ^&^& python main.py
+)
 timeout /t 4 >nul
 echo Backend started: http://localhost:8080
 
@@ -171,7 +206,11 @@ exit /b 0
 :cmd_frontend
 echo.
 echo Starting Frontend (port 3000)...
-start "AI-Law-Frontend" cmd /k "cd /d "%ROOT%\frontend" && title Frontend :3000 && python main.py"
+if defined CONDA_PATH (
+    start "AI-Law-Frontend" cmd /k call %CONDA_PATH%\Scripts\activate.bat ^&^& conda activate %CONDA_ENV% ^&^& cd /d %ROOT%\frontend ^&^& title Frontend :3000 ^&^& python main.py
+) else (
+    start "AI-Law-Frontend" cmd /k cd /d %ROOT%\frontend ^&^& title Frontend :3000 ^&^& python main.py
+)
 timeout /t 2 >nul
 echo Frontend started: http://localhost:3000
 start http://localhost:3000
