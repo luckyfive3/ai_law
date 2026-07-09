@@ -16,14 +16,12 @@ mongodb:
   min_pool_size: 10
 
 jwt:
-  secret: "${JWT_SECRET}"
   access_ttl: 24h
   refresh_ttl: 168h
 
 llm:
   provider: deepseek
   base_url: "https://api.deepseek.com/v1"
-  api_key: "${DEEPSEEK_API_KEY}"
   model: deepseek-chat
   temperature: 0.2
   max_tokens: 2048
@@ -32,8 +30,6 @@ llm:
 
 ragflow:
   base_url: "http://ragflow:9380"
-  api_key: "${RAGFLOW_API_KEY}"
-  dataset_id: "${RAGFLOW_DATASET_ID}"
   top_k: 5
   similarity_threshold: 0.5
   timeout: 10s
