@@ -1,16 +1,20 @@
 # 构建阶段
 FROM golang:1.22-alpine AS builder
 
+ENV GOPROXY=https://goproxy.cn,direct
+ENV CGO_ENABLED=0
+ENV GOOS=linux
+
 RUN apk add --no-cache git ca-certificates
 
 WORKDIR /build
 
 COPY go.mod ./
-RUN go mod download && go mod tidy
+RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-w -s" -o server ./cmd/server
+RUN go mod tidy && go build -a -installsuffix cgo -ldflags="-w -s" -o server ./cmd/server
 
 # 运行阶段
 FROM alpine:3.19

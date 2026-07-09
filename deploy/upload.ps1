@@ -3,9 +3,9 @@
 # 使用前请修改 SERVER_IP 为你的服务器 IP
 # ═══════════════════════════════════════
 
-$SERVER_IP = "你的服务器IP"
+$SERVER_IP = "123.57.89.197"
 $SERVER_USER = "root"
-$REMOTE_DIR = "/opt/ai-law"
+$REMOTE_DIR = "/opt/ai-law/lfai"
 
 Write-Host "============================================" -ForegroundColor Green
 Write-Host "   AI法律助手 — 上传到阿里云服务器" -ForegroundColor Green

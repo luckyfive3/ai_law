@@ -51,7 +51,7 @@ func (h *KnowledgeHandler) Search(c *gin.Context) {
 
 	// 转换响应
 	var list []response.KnowledgeSearchResult
-	for _, r := range results {
+	for _, r := range results.Items {
 		list = append(list, response.KnowledgeSearchResult{
 			ID:       r.ID,
 			Name:     r.LawName,

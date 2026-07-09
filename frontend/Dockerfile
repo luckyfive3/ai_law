@@ -6,7 +6,7 @@ RUN apk add --no-cache tzdata && cp /usr/share/zoneinfo/Asia/Shanghai /etc/local
 ENV TZ=Asia/Shanghai
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt
 
 COPY . .
 
