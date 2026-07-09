@@ -1,4 +1,4 @@
-"""API 代理路由 — 将前端请求转发到后端 Go 服务"""
+"""API 代理路由 — 将前端请求转发到后端 Python 服务"""
 
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import StreamingResponse
@@ -13,7 +13,7 @@ API_PREFIX = "/api/v1"
 
 
 async def proxy_request(request: Request, path: str):
-    """通用代理：将请求转发到后端服务"""
+    """通用代理：将请求转发到后端 Python 服务"""
     client = httpx.AsyncClient(timeout=30.0)
     body = None
     if request.method in ("POST", "PUT", "PATCH"):
@@ -35,6 +35,7 @@ async def proxy_request(request: Request, path: str):
             content=body,
         )
 
+        # SSE 流式响应：直接透传，不做 JSON 解析
         if resp.headers.get("content-type", "").startswith("text/event-stream"):
             return StreamingResponse(
                 resp.aiter_bytes(),
@@ -51,4 +52,5 @@ async def proxy_request(request: Request, path: str):
 
 @router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
 async def proxy_all(request: Request, path: str):
+    """代理所有 API 请求到后端 Python 服务"""
     return await proxy_request(request, path)

@@ -1,6 +1,14 @@
 version: '3.8'
 
+# ═══════════════════════════════════════
+# AI法律助手 v2.0 — 开发环境
+# 启动: docker compose up -d
+# 停止: docker compose down
+# ═══════════════════════════════════════
+
 services:
+
+  # ========== Python FastAPI 后端 ==========
   backend:
     build:
       context: ./backend
@@ -8,36 +16,30 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - DB_HOST=postgres
-      - DB_USER=${DB_USER:-ailaw}
-      - DB_PASSWORD=${DB_PASSWORD:-ailaw123}
-      - REDIS_HOST=redis
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
-      - JWT_SECRET=${JWT_SECRET:-dev-jwt-secret-change-in-production}
+      - MONGO_URI=mongodb://mongodb:27017
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
-      - CONFIG_PATH=/app/config/config.yaml
+      - JWT_SECRET=${JWT_SECRET:-dev-jwt-secret-change-in-production}
+      - RAGFLOW_API_KEY=${RAGFLOW_API_KEY:-}
+      - RAGFLOW_BASE_URL=http://ragflow:9380
+      - RAGFLOW_DATASET_ID=${RAGFLOW_DATASET_ID:-}
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
+      mongodb:
         condition: service_healthy
     restart: unless-stopped
     networks:
       - ai-law-net
 
-  postgres:
-    image: postgres:15-alpine
+  # ========== MongoDB 7 ==========
+  mongodb:
+    image: mongo:7
     ports:
-      - "5432:5432"
+      - "27017:27017"
     environment:
-      POSTGRES_DB: ai_law
-      POSTGRES_USER: ${DB_USER:-ailaw}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-ailaw123}
+      MONGO_INITDB_DATABASE: ai_law
     volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./backend/migrations:/docker-entrypoint-initdb.d
+      - mongodata:/data/db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-ailaw} -d ai_law"]
+      test: ["CMD-SHELL", "mongosh --eval 'db.adminCommand(\"ping\")'"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -45,25 +47,24 @@ services:
     networks:
       - ai-law-net
 
-  redis:
-    image: redis:7-alpine
+  # ========== RAGFlow 知识库引擎 ==========
+  ragflow:
+    image: infiniflow/ragflow:v0.15.0
     ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes ${REDIS_PASSWORD:+--requirepass $REDIS_PASSWORD}
+      - "9380:9380"
+    environment:
+      RAGFLOW_DATABASE_URL: mongodb://mongodb:27017/ragflow
     volumes:
-      - redisdata:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - ragflow_data:/ragflow/data
+    depends_on:
+      - mongodb
     restart: unless-stopped
     networks:
       - ai-law-net
 
 volumes:
-  pgdata:
-  redisdata:
+  mongodata:
+  ragflow_data:
 
 networks:
   ai-law-net:

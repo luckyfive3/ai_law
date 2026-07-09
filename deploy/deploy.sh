@@ -1,7 +1,8 @@
 #!/bin/bash
 # ═══════════════════════════════════════
-# AI法律助手 v1.0 — 阿里云一键部署脚本
-# 适用系统: CentOS 7+ / Alibaba Cloud Linux / Ubuntu 20.04+
+# AI法律助手 v2.0 — 阿里云一键部署脚本
+# 技术栈: Python FastAPI + MongoDB + RAGFlow + LangChain
+# 适用系统: Ubuntu 20.04+ (阿里云 ECS)
 # 使用方法: chmod +x deploy.sh && ./deploy.sh
 # ═══════════════════════════════════════
 
@@ -13,7 +14,8 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 echo -e "${GREEN}============================================${NC}"
-echo -e "${GREEN}   AI法律助手 v1.0 — 阿里云部署脚本${NC}"
+echo -e "${GREEN}   AI法律助手 v2.0 — 阿里云部署脚本${NC}"
+echo -e "${GREEN}   技术栈: FastAPI + MongoDB + RAGFlow${NC}"
 echo -e "${GREEN}============================================${NC}"
 
 # ─── 1. 检查 Docker ───
@@ -35,9 +37,9 @@ if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/
 fi
 
 # ─── 2. 创建项目目录 ───
-echo -e "\n${YELLOW}[2/7] 创建项目目录 /opt/ai-law...${NC}"
-mkdir -p /opt/ai-law
-cd /opt/ai-law
+echo -e "\n${YELLOW}[2/7] 创建项目目录 /opt/ai-law/lfai...${NC}"
+mkdir -p /opt/ai-law/lfai
+cd /opt/ai-law/lfai
 
 # ─── 3. 配置环境变量 ───
 echo -e "\n${YELLOW}[3/7] 配置环境变量...${NC}"
@@ -46,15 +48,15 @@ if [ ! -f .env ]; then
     echo ""
     echo "=== 生成环境变量请运行 ==="
     echo ""
-    echo "cat > /opt/ai-law/.env << 'EOF'"
-    echo "DB_USER=ailaw"
-    echo "DB_PASSWORD=$(openssl rand -base64 16)"
-    echo "REDIS_PASSWORD=$(openssl rand -base64 16)"
+    echo "cat > /opt/ai-law/lfai/.env << 'EOF'"
+    echo "MONGO_URI=mongodb://mongodb:27017"
     echo "JWT_SECRET=$(openssl rand -base64 32)"
     echo "DEEPSEEK_API_KEY=sk-your-deepseek-api-key"
+    echo "RAGFLOW_API_KEY=your-ragflow-api-key"
+    echo "RAGFLOW_DATASET_ID=your-ragflow-dataset-id"
     echo "EOF"
     echo ""
-    echo "然后修改 DEEPSEEK_API_KEY 为你的真实 API Key"
+    echo "然后修改 DEEPSEEK_API_KEY、RAGFLOW_API_KEY、RAGFLOW_DATASET_ID 为真实值"
     echo "再重新运行 ./deploy.sh"
     exit 1
 fi
@@ -76,8 +78,8 @@ fi
 # ─── 5. 拉取代码 ───
 echo -e "\n${YELLOW}[5/7] 拉取项目代码...${NC}"
 # 如果你用 Git：git pull origin main
-# 这里假设代码已从本机 scp/rsync 上传到 /opt/ai-law
-echo -e "${YELLOW}请确保代码已上传到 /opt/ai-law（backend/ frontend/ deploy/ docker-compose.prod.yml）${NC}"
+# 这里假设代码已从本机 scp/rsync 上传到 /opt/ai-law/lfai
+echo -e "${YELLOW}请确保代码已上传到 /opt/ai-law/lfai（backend/ frontend/ deploy/ docker-compose.prod.yml）${NC}"
 
 # ─── 6. 构建并启动 ───
 echo -e "\n${YELLOW}[6/7] 构建 Docker 镜像并启动服务...${NC}"
@@ -87,6 +89,12 @@ docker compose -f docker-compose.prod.yml up -d
 # ─── 7. 等待服务就绪 ───
 echo -e "\n${YELLOW}[7/7] 等待服务就绪...${NC}"
 sleep 10
+
+# MongoDB 就绪检查
+echo -e "\n${YELLOW}检查 MongoDB 连接状态...${NC}"
+docker compose -f docker-compose.prod.yml exec mongodb mongosh --eval "db.adminCommand('ping')" 2>/dev/null && \
+    echo -e "${GREEN}MongoDB 已就绪${NC}" || \
+    echo -e "${RED}MongoDB 未就绪，请检查日志${NC}"
 
 # 健康检查
 echo -e "\n${GREEN}=== 健康检查 ===${NC}"
@@ -98,17 +106,19 @@ echo -e "${GREEN}============================================${NC}"
 echo -e "${GREEN}   部署完成！${NC}"
 echo -e "${GREEN}============================================${NC}"
 echo ""
-echo -e "访问地址: ${GREEN}https://你的服务器IP${NC}"
+echo -e "后端 API:  http://localhost:8080"
+echo -e "RAGFlow:   http://localhost:9380"
+echo -e "访问地址:  ${GREEN}https://你的服务器IP${NC}"
 echo -e "（首次访问需跳过 HTTPS 证书警告）"
 echo ""
 echo -e "常用命令:"
-echo -e "  查看日志:  ${YELLOW}cd /opt/ai-law && docker compose -f docker-compose.prod.yml logs -f${NC}"
-echo -e "  重启服务:  ${YELLOW}cd /opt/ai-law && docker compose -f docker-compose.prod.yml restart${NC}"
-echo -e "  停止服务:  ${YELLOW}cd /opt/ai-law && docker compose -f docker-compose.prod.yml down${NC}"
-echo -e "  查看状态:  ${YELLOW}cd /opt/ai-law && docker compose -f docker-compose.prod.yml ps${NC}"
+echo -e "  查看日志:  ${YELLOW}cd /opt/ai-law/lfai && docker compose -f docker-compose.prod.yml logs -f${NC}"
+echo -e "  重启服务:  ${YELLOW}cd /opt/ai-law/lfai && docker compose -f docker-compose.prod.yml restart${NC}"
+echo -e "  停止服务:  ${YELLOW}cd /opt/ai-law/lfai && docker compose -f docker-compose.prod.yml down${NC}"
+echo -e "  查看状态:  ${YELLOW}cd /opt/ai-law/lfai && docker compose -f docker-compose.prod.yml ps${NC}"
 
 # ─── 阿里云安全组提示 ───
 echo ""
 echo -e "${RED}⚠️  重要：请在阿里云安全组中开放以下端口:${NC}"
-echo -e "   80 (HTTP)  /  443 (HTTPS)"
+echo -e "   80 (HTTP)  /  443 (HTTPS)  /  8080 (后端)  /  9380 (RAGFlow)"
 echo -e "   阿里云控制台 → 云服务器 ECS → 安全组 → 入方向 → 添加规则"

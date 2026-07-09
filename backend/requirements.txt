@@ -1,0 +1,38 @@
+# ═══════════════════════════════════════
+# AI法律助手 v1.0 — Python 后端依赖
+# 阿里云 ECS (Ubuntu Linux) + MongoDB + RAGFlow + LangChain
+# ═══════════════════════════════════════
+
+# Web 框架
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# MongoDB 异步驱动
+motor==3.7.0
+pymongo==4.10.1
+
+# LangChain 生态
+langchain==0.3.13
+langchain-community==0.3.13
+langchain-openai==0.2.14
+
+# RAGFlow HTTP 客户端
+httpx==0.28.1
+
+# JWT 鉴权
+pyjwt==2.10.1
+passlib[bcrypt]==1.7.4
+
+# 配置管理
+pyyaml==6.0.2
+python-dotenv==1.0.1
+
+# 数据校验
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# 限流
+slowapi==0.1.9
+
+# 工具
+python-multipart==0.0.19
