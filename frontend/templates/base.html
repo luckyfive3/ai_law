@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="AI法律助手 — 基于大模型的智能法律咨询服务，为您提供法律法规参考信息">
+<meta property="og:title" content="AI法律助手">
+<meta property="og:description" content="智能法律咨询服务，覆盖婚姻家庭、劳动纠纷、合同纠纷等领域">
+<meta property="og:type" content="website">
+<title>{% block title %}AI法律助手{% endblock %}</title>
+<link rel="icon" href="/static/img/favicon.ico" type="image/x-icon">
+<link rel="stylesheet" href="/static/css/global.css">
+<link rel="stylesheet" href="/static/css/components.css">
+<link rel="stylesheet" href="/static/css/markdown.css">
+{% block extra_head %}{% endblock %}
+</head>
+<body>
+  <!-- Header 导航栏 -->
+  {% include 'components/header.html' %}
+
+  <!-- 主内容区 -->
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- 脚本 -->
+  <script src="/static/js/utils.js"></script>
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/chat.js"></script>
+  <script src="/static/js/history.js"></script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

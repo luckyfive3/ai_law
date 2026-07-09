@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}历史记录 — AI法律助手{% endblock %}
+
+{% block content %}
+<div class="container" style="padding-top: var(--space-6); padding-bottom: var(--space-12); max-width: 800px;">
+
+  <!-- 页面标题 -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-6);">
+    <h1 style="font-size:var(--text-2xl);font-weight:600;">历史记录</h1>
+  </div>
+
+  <!-- 加载中 -->
+  <div id="historyLoading" style="display:flex;justify-content:center;padding:var(--space-12);">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- 历史列表 -->
+  <div id="historyList" class="history-list"></div>
+
+  <!-- 加载更多 -->
+  <div id="historyLoadMore" style="text-align:center;margin-top:var(--space-6);display:none;">
+    <button class="btn btn-outline" onclick="History._loadList()">加载更多</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  History.init();
+});
+</script>
+{% endblock %}

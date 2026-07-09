@@ -1,0 +1,26 @@
+<!-- Header 导航栏 -->
+<header class="header">
+  <div class="header-inner">
+    <div class="header-left">
+      <a href="/" class="header-logo">
+        <svg viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="8" fill="#1A56DB"/>
+          <text x="16" y="22" text-anchor="middle" fill="white" font-size="18" font-weight="bold">法</text>
+        </svg>
+        AI法律助手
+      </a>
+      <nav class="header-nav">
+        <a href="/" class="{% if page == 'home' %}active{% endif %}">首页</a>
+        <a href="/chat" class="{% if page == 'chat' %}active{% endif %}">智能咨询</a>
+        <a href="/knowledge" class="{% if page == 'knowledge' %}active{% endif %}">知识库</a>
+        <a href="/history" class="{% if page in ['history', 'history_detail'] %}active{% endif %}" data-auth-required>历史记录</a>
+      </nav>
+    </div>
+    <div class="header-right">
+      <a href="/profile" class="auth-logged-in" style="display:none;">
+        <div class="header-avatar"></div>
+      </a>
+      <a href="/login" class="btn btn-outline btn-sm auth-logged-out">登录 / 注册</a>
+    </div>
+  </div>
+</header>

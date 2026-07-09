@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% block title %}法律知识库 — AI法律助手{% endblock %}
+
+{% block content %}
+<div class="container" style="padding-top: var(--space-6); padding-bottom: var(--space-12); max-width: 900px;">
+
+  <h1 style="font-size: var(--text-2xl); font-weight: 600; margin-bottom: var(--space-6);">法律知识库</h1>
+
+  <!-- 搜索框 -->
+  <div class="search-box">
+    <span class="search-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+      </svg>
+    </span>
+    <input
+      id="knowledgeSearch"
+      class="input"
+      type="text"
+      placeholder="搜索法律法规、法条关键词…"
+      autocomplete="off"
+    />
+  </div>
+
+  <!-- 分类选项卡 -->
+  <div class="knowledge-tabs" id="knowledgeTabs">
+    <button class="knowledge-tab active" data-category="all">全部</button>
+    <button class="knowledge-tab" data-category="constitution">宪法</button>
+    <button class="knowledge-tab" data-category="civil">民法</button>
+    <button class="knowledge-tab" data-category="criminal">刑法</button>
+    <button class="knowledge-tab" data-category="labor">劳动法</button>
+    <button class="knowledge-tab" data-category="marriage">婚姻法</button>
+    <button class="knowledge-tab" data-category="contract">合同法</button>
+    <button class="knowledge-tab" data-category="traffic">交通法</button>
+    <button class="knowledge-tab" data-category="housing">房产法</button>
+    <button class="knowledge-tab" data-category="consumer">消费者权益</button>
+  </div>
+
+  <!-- 法条列表 -->
+  <div id="knowledgeList">
+    <div style="text-align:center;padding:var(--space-12);">
+      <div class="spinner"></div>
+      <p style="font-size:var(--text-sm);color:var(--color-gray-500);margin-top:var(--space-3);">加载中…</p>
+    </div>
+  </div>
+
+  <!-- 空状态 -->
+  <div id="knowledgeEmpty" class="empty-state" style="display:none;">
+    <div class="icon">📚</div>
+    <div class="title">未找到相关法条</div>
+    <div class="desc">尝试修改搜索关键词或切换分类</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const searchInput = document.getElementById('knowledgeSearch');
+  const tabs = document.getElementById('knowledgeTabs');
+  const listEl = document.getElementById('knowledgeList');
+  const emptyEl = document.getElementById('knowledgeEmpty');
+
+  let currentCategory = 'all';
+  let searchTimeout = null;
+
+  // 模拟法条数据（实际从后端API获取）
+  const mockLaws = [
+    { id: 1, name: '中华人民共和国宪法', category: 'constitution', year: '1982', summary: '国家根本法，规定国家根本制度和根本任务' },
+    { id: 2, name: '中华人民共和国民法典', category: 'civil', year: '2020', summary: '调整平等主体之间的人身关系和财产关系' },
+    { id: 3, name: '中华人民共和国刑法', category: 'criminal', year: '2020修正', summary: '规定犯罪、刑事责任和刑罚的法律' },
+    { id: 4, name: '中华人民共和国劳动法', category: 'labor', year: '2018修正', summary: '调整劳动关系及与劳动关系密切联系的其他社会关系' },
+    { id: 5, name: '中华人民共和国劳动合同法', category: 'labor', year: '2012修正', summary: '规范劳动合同的订立、履行、变更、解除和终止' },
+    { id: 6, name: '中华人民共和国婚姻法', category: 'marriage', year: '2001修正', summary: '调整婚姻家庭关系的法律规范' },
+    { id: 7, name: '中华人民共和国合同法', category: 'contract', year: '1999', summary: '调整平等主体之间合同关系的法律' },
+    { id: 8, name: '中华人民共和国道路交通安全法', category: 'traffic', year: '2021修正', summary: '维护道路交通秩序，预防和减少交通事故' },
+    { id: 9, name: '中华人民共和国城市房地产管理法', category: 'housing', year: '2019修正', summary: '加强对城市房地产的管理，维护房地产市场秩序' },
+    { id: 10, name: '中华人民共和国消费者权益保护法', category: 'consumer', year: '2013修正', summary: '保护消费者合法权益，维护社会经济秩序' },
+    { id: 11, name: '中华人民共和国反家庭暴力法', category: 'marriage', year: '2015', summary: '预防和制止家庭暴力，保护家庭成员的合法权益' },
+    { id: 12, name: '中华人民共和国侵权责任法', category: 'civil', year: '2009', summary: '保护民事主体的合法权益，明确侵权责任' },
+  ];
+
+  function renderLaws(laws) {
+    listEl.innerHTML = '';
+    if (laws.length === 0) {
+      emptyEl.style.display = 'flex';
+      return;
+    }
+    emptyEl.style.display = 'none';
+
+    laws.forEach(law => {
+      const item = document.createElement('div');
+      item.className = 'law-list-item';
+      item.innerHTML = `
+        <div class="name">${escapeHtml(law.name)}</div>
+        <div class="info">${escapeHtml(law.year)} · ${escapeHtml(law.summary)}</div>
+      `;
+      item.addEventListener('click', () => {
+        window.location.href = `/knowledge/${law.id}`;
+      });
+      listEl.appendChild(item);
+    });
+  }
+
+  function filterAndRender() {
+    const query = searchInput.value.trim().toLowerCase();
+    let filtered = mockLaws;
+    if (currentCategory !== 'all') {
+      filtered = filtered.filter(l => l.category === currentCategory);
+    }
+    if (query) {
+      filtered = filtered.filter(l =>
+        l.name.toLowerCase().includes(query) ||
+        l.summary.toLowerCase().includes(query)
+      );
+    }
+    renderLaws(filtered);
+  }
+
+  // 搜索
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(filterAndRender, 300);
+  });
+
+  // 分类切换
+  tabs.addEventListener('click', (e) => {
+    const tab = e.target.closest('.knowledge-tab');
+    if (!tab) return;
+
+    tabs.querySelectorAll('.knowledge-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentCategory = tab.dataset.category;
+    filterAndRender();
+  });
+
+  // 初始加载
+  renderLaws(mockLaws);
+});
+</script>
+{% endblock %}

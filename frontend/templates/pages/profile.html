@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% block title %}个人中心 — AI法律助手{% endblock %}
+
+{% block content %}
+<div class="container" style="padding-top: var(--space-6); padding-bottom: var(--space-12); max-width: 700px;">
+
+  <h1 style="font-size: var(--text-2xl); font-weight: 600; margin-bottom: var(--space-6);">个人中心</h1>
+
+  <!-- 头像与基本信息 -->
+  <div class="profile-section">
+    <div class="profile-header">
+      <div class="profile-avatar" id="profileAvatar">用</div>
+      <div>
+        <div id="profileNickname" style="font-size: var(--text-lg); font-weight: 600;">法律助手用户</div>
+        <div id="profilePhone" style="font-size: var(--text-sm); color: var(--color-gray-500);">未登录</div>
+      </div>
+      <button id="editNicknameBtn" class="btn btn-outline btn-sm" style="margin-left: auto;">编辑</button>
+    </div>
+
+    <div id="editNicknameForm" style="display:none; padding-bottom: var(--space-6); border-bottom: 1px solid var(--color-gray-100); margin-bottom: var(--space-6);">
+      <label class="form-label">修改昵称</label>
+      <div style="display:flex;gap:var(--space-2);">
+        <input id="nicknameInput" class="input" type="text" maxlength="20" placeholder="2-20个字符" />
+        <button id="saveNicknameBtn" class="btn btn-primary btn-sm">保存</button>
+        <button id="cancelNicknameBtn" class="btn btn-ghost btn-sm">取消</button>
+      </div>
+      <p class="form-error" id="nicknameError" style="display:none;"></p>
+    </div>
+
+    <!-- 设置项 -->
+    <div class="setting-item">
+      <div>
+        <div class="setting-label">保存咨询记录</div>
+        <div class="setting-desc">关闭后新对话将不会保存到历史记录</div>
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" id="saveHistoryToggle" checked />
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="setting-item">
+      <div>
+        <div class="setting-label">清除全部历史记录</div>
+        <div class="setting-desc">此操作不可恢复</div>
+      </div>
+      <button id="clearHistoryBtn" class="btn btn-outline btn-sm btn-danger">清除</button>
+    </div>
+  </div>
+
+  <!-- 关于 -->
+  <div class="profile-section">
+    <div class="setting-item">
+      <div class="setting-label">版本号</div>
+      <div style="font-size: var(--text-sm); color: var(--color-gray-500);">v1.0.0</div>
+    </div>
+    <div class="setting-item">
+      <a href="/disclaimer" class="setting-label" style="color: var(--color-primary-600);">使用须知与免责声明</a>
+    </div>
+    <div class="setting-item">
+      <a href="/disclaimer" class="setting-label" style="color: var(--color-primary-600);">隐私政策</a>
+    </div>
+  </div>
+
+  <!-- 退出登录 -->
+  <button id="logoutBtn" class="btn btn-outline" style="width:100%;color:var(--color-accent-red);border-color:var(--color-accent-red);padding:var(--space-4);">
+    退出登录
+  </button>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  if (!Auth.requireLogin()) return;
+
+  const user = Auth.getUser();
+
+  // 加载用户信息
+  if (user) {
+    document.getElementById('profileNickname').textContent = user.nickname || '法律助手用户';
+    document.getElementById('profilePhone').textContent = user.phone || '***';
+    document.getElementById('profileAvatar').textContent = (user.nickname || '用')[0];
+  }
+
+  // 编辑昵称
+  document.getElementById('editNicknameBtn').addEventListener('click', () => {
+    document.getElementById('editNicknameForm').style.display = 'block';
+    document.getElementById('editNicknameBtn').style.display = 'none';
+    document.getElementById('nicknameInput').value = document.getElementById('profileNickname').textContent;
+    document.getElementById('nicknameInput').focus();
+  });
+
+  document.getElementById('cancelNicknameBtn').addEventListener('click', () => {
+    document.getElementById('editNicknameForm').style.display = 'none';
+    document.getElementById('editNicknameBtn').style.display = '';
+  });
+
+  document.getElementById('saveNicknameBtn').addEventListener('click', async () => {
+    const name = document.getElementById('nicknameInput').value.trim();
+    if (name.length < 2 || name.length > 20) {
+      document.getElementById('nicknameError').textContent = '昵称需要2-20个字符';
+      document.getElementById('nicknameError').style.display = 'block';
+      return;
+    }
+    try {
+      await Api.put('user/profile', { nickname: name });
+      document.getElementById('profileNickname').textContent = name;
+      document.getElementById('profileAvatar').textContent = name[0];
+      document.getElementById('editNicknameForm').style.display = 'none';
+      document.getElementById('editNicknameBtn').style.display = '';
+      document.getElementById('nicknameError').style.display = 'none';
+      Toast.success('昵称已更新');
+    } catch (e) {
+      Toast.error('保存失败: ' + e.message);
+    }
+  });
+
+  // 隐私设置开关
+  document.getElementById('saveHistoryToggle').addEventListener('change', async function() {
+    try {
+      await Api.put('user/privacy', { privacy_save_history: this.checked });
+      Toast.success(this.checked ? '已开启历史记录保存' : '已关闭历史记录保存');
+    } catch (e) {
+      Toast.error('设置失败: ' + e.message);
+      this.checked = !this.checked;
+    }
+  });
+
+  // 清除历史记录
+  document.getElementById('clearHistoryBtn').addEventListener('click', () => {
+    showModal({
+      title: '清除全部历史记录',
+      message: '此操作将永久删除所有咨询记录，无法恢复。确定要继续吗？',
+      confirmText: '确认清除',
+      danger: true,
+      onConfirm: () => {
+        Toast.info('该功能需要后端支持');
+      },
+    });
+  });
+
+  // 退出登录
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    showModal({
+      title: '退出登录',
+      message: '确定要退出当前账号吗？',
+      confirmText: '退出',
+      danger: true,
+      onConfirm: () => {
+        Auth.logout();
+        Toast.success('已退出登录');
+        setTimeout(() => { window.location.href = '/'; }, 500);
+      },
+    });
+  });
+});
+</script>
+{% endblock %}

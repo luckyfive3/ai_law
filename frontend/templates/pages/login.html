@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+{% block title %}登录/注册 — AI法律助手{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+  <div class="auth-card">
+    <h2>登录 / 注册</h2>
+    <p class="subtitle">使用手机号验证码快速登录</p>
+
+    <form id="loginForm" autocomplete="off">
+      <!-- 手机号 -->
+      <div class="form-group">
+        <label class="form-label" for="phone">手机号</label>
+        <input
+          type="tel"
+          id="phone"
+          class="input"
+          placeholder="请输入手机号"
+          maxlength="11"
+          autocomplete="off"
+        />
+        <p class="form-error" id="phoneError" style="display:none;"></p>
+      </div>
+
+      <!-- 验证码 -->
+      <div class="form-group">
+        <label class="form-label" for="code">验证码</label>
+        <div class="code-input-group">
+          <input
+            type="text"
+            id="code"
+            class="input"
+            placeholder="请输入6位验证码"
+            maxlength="6"
+            inputmode="numeric"
+            autocomplete="off"
+          />
+          <button type="button" id="sendCodeBtn" class="send-code-btn">获取验证码</button>
+        </div>
+        <p class="form-error" id="codeError" style="display:none;"></p>
+      </div>
+
+      <!-- 协议勾选 -->
+      <div class="form-group">
+        <label class="checkbox-group">
+          <input type="checkbox" id="agreeTerms" />
+          <span>我已阅读并同意<a href="/disclaimer" target="_blank">《用户协议》</a>和<a href="/disclaimer" target="_blank">《隐私政策》</a></span>
+        </label>
+        <p class="form-error" id="termsError" style="display:none;"></p>
+      </div>
+
+      <!-- 提交按钮 -->
+      <button type="submit" id="loginBtn" class="btn btn-primary" style="width:100%;" disabled>
+        登录 / 注册
+      </button>
+
+      <!-- 微信登录预留 -->
+      <div style="text-align: center; margin-top: var(--space-6);">
+        <p style="font-size: var(--text-xs); color: var(--color-gray-500); margin-bottom: var(--space-3);">
+          — 其他登录方式 —
+        </p>
+        <button type="button" class="btn btn-outline" style="width:100%;" disabled>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="#07C160"><path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 01.213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 00.167-.054l1.903-1.114a.864.864 0 01.717-.098 10.16 10.16 0 002.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348zM5.785 5.991c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 01-1.162 1.178A1.17 1.17 0 014.623 7.17c0-.651.52-1.18 1.162-1.18zm5.813 0c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 01-1.162 1.178 1.17 1.17 0 01-1.162-1.178c0-.651.52-1.18 1.162-1.18z"/></svg>
+          微信一键登录（即将上线）
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const phoneInput = document.getElementById('phone');
+  const codeInput = document.getElementById('code');
+  const sendCodeBtn = document.getElementById('sendCodeBtn');
+  const loginBtn = document.getElementById('loginBtn');
+  const agreeCheck = document.getElementById('agreeTerms');
+  const form = document.getElementById('loginForm');
+
+  let countdown = 0;
+  let timer = null;
+
+  function validatePhone(phone) {
+    return /^1[3-9]\d{9}$/.test(phone);
+  }
+
+  function updateLoginBtn() {
+    const phoneValid = validatePhone(phoneInput.value);
+    const codeValid = codeInput.value.length === 6;
+    const agreed = agreeCheck.checked;
+    loginBtn.disabled = !(phoneValid && codeValid && agreed);
+  }
+
+  phoneInput.addEventListener('input', () => {
+    updateLoginBtn();
+    document.getElementById('phoneError').style.display = 'none';
+  });
+
+  codeInput.addEventListener('input', () => {
+    updateLoginBtn();
+    document.getElementById('codeError').style.display = 'none';
+  });
+
+  agreeCheck.addEventListener('change', () => {
+    updateLoginBtn();
+    document.getElementById('termsError').style.display = 'none';
+  });
+
+  // 发送验证码
+  sendCodeBtn.addEventListener('click', async () => {
+    const phone = phoneInput.value.trim();
+    if (!validatePhone(phone)) {
+      document.getElementById('phoneError').textContent = '请输入正确的手机号';
+      document.getElementById('phoneError').style.display = 'block';
+      return;
+    }
+
+    if (countdown > 0) return;
+
+    try {
+      await Api.post('auth/send-code', { phone });
+      Toast.success('验证码已发送');
+
+      // 倒计时
+      countdown = 60;
+      sendCodeBtn.disabled = true;
+      sendCodeBtn.textContent = `${countdown}秒后重发`;
+
+      timer = setInterval(() => {
+        countdown--;
+        if (countdown <= 0) {
+          clearInterval(timer);
+          sendCodeBtn.disabled = false;
+          sendCodeBtn.textContent = '获取验证码';
+        } else {
+          sendCodeBtn.textContent = `${countdown}秒后重发`;
+        }
+      }, 1000);
+    } catch (e) {
+      Toast.error(e.message || '发送失败');
+    }
+  });
+
+  // 登录提交
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const phone = phoneInput.value.trim();
+    const code = codeInput.value.trim();
+
+    let valid = true;
+    if (!validatePhone(phone)) {
+      document.getElementById('phoneError').textContent = '请输入正确的手机号';
+      document.getElementById('phoneError').style.display = 'block';
+      valid = false;
+    }
+    if (code.length !== 6) {
+      document.getElementById('codeError').textContent = '请输入6位验证码';
+      document.getElementById('codeError').style.display = 'block';
+      valid = false;
+    }
+    if (!agreeCheck.checked) {
+      document.getElementById('termsError').textContent = '请阅读并同意用户协议和隐私政策';
+      document.getElementById('termsError').style.display = 'block';
+      valid = false;
+    }
+    if (!valid) return;
+
+    loginBtn.disabled = true;
+    loginBtn.textContent = '登录中…';
+
+    try {
+      const resp = await Api.post('auth/login', {
+        phone,
+        code,
+        agree_terms: true,
+      });
+
+      if (resp.code === 0 && resp.data) {
+        Auth.login(
+          resp.data.access_token,
+          resp.data.refresh_token,
+          resp.data.user
+        );
+        Toast.success('登录成功');
+
+        // 跳转
+        const redirect = new URLSearchParams(window.location.search).get('redirect');
+        setTimeout(() => {
+          window.location.href = redirect ? decodeURIComponent(redirect) : '/';
+        }, 500);
+      } else {
+        throw new Error(resp.message || '登录失败');
+      }
+    } catch (err) {
+      Toast.error(err.message || '登录失败，请重试');
+      loginBtn.disabled = false;
+      loginBtn.textContent = '登录 / 注册';
+    }
+  });
+});
+</script>
+{% endblock %}

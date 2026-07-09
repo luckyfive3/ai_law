@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block title %}AI法律助手 — 您的随身法律顾问{% endblock %}
+
+{% block content %}
+<div class="container" style="padding-top: var(--space-12); padding-bottom: var(--space-16);">
+  <!-- 首屏 Hero 区域 -->
+  <div style="text-align: center; max-width: 720px; margin: 0 auto;">
+    <div style="font-size: 4rem; margin-bottom: var(--space-4);">⚖️</div>
+    <h1 style="font-size: var(--text-4xl); font-weight: 700; color: var(--color-gray-900); margin-bottom: var(--space-3);">
+      AI法律助手
+    </h1>
+    <p style="font-size: var(--text-lg); color: var(--color-gray-500); margin-bottom: var(--space-6);">
+      您的随身法律顾问 — 基于权威法律法规知识库，为您提供专业的法律信息参考
+    </p>
+    <p style="font-size: var(--text-sm); color: var(--color-gray-500); margin-bottom: var(--space-6);">
+      覆盖婚姻家庭、劳动纠纷、合同纠纷、交通事故、房产纠纷、消费维权等高频法律领域<br>
+      AI回答仅供参考，不构成法律意见
+    </p>
+    <a href="/chat" class="btn btn-primary btn-lg" style="font-size: var(--text-lg); padding: var(--space-4) var(--space-12);">
+      开始咨询
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M5 12h14M12 5l7 7-7 7"/>
+      </svg>
+    </a>
+  </div>
+
+  <!-- 常见问题分类入口 -->
+  <div style="margin-top: var(--space-16); text-align: center;">
+    <h2 style="font-size: var(--text-2xl); font-weight: 600; color: var(--color-gray-800); margin-bottom: var(--space-2);">
+      选择咨询领域
+    </h2>
+    <p style="font-size: var(--text-sm); color: var(--color-gray-500);">
+      点击下方分类，快速进入相关法律咨询
+    </p>
+  </div>
+
+  <div class="category-grid">
+    <a href="/chat?category=marriage" class="category-card">
+      <span class="icon">💒</span>
+      <span class="title">婚姻家庭</span>
+      <span class="desc">离婚、财产分割、子女抚养等</span>
+    </a>
+    <a href="/chat?category=labor" class="category-card">
+      <span class="icon">💼</span>
+      <span class="title">劳动纠纷</span>
+      <span class="desc">辞退赔偿、工资拖欠、工伤等</span>
+    </a>
+    <a href="/chat?category=contract" class="category-card">
+      <span class="icon">📝</span>
+      <span class="title">合同纠纷</span>
+      <span class="desc">合同违约、民间借贷、租赁等</span>
+    </a>
+    <a href="/chat?category=traffic" class="category-card">
+      <span class="icon">🚗</span>
+      <span class="title">交通事故</span>
+      <span class="desc">责任认定、赔偿标准、保险理赔等</span>
+    </a>
+    <a href="/chat?category=housing" class="category-card">
+      <span class="icon">🏠</span>
+      <span class="title">房产纠纷</span>
+      <span class="desc">买卖纠纷、产权争议、拆迁等</span>
+    </a>
+    <a href="/chat?category=consumer" class="category-card">
+      <span class="icon">🛒</span>
+      <span class="title">消费维权</span>
+      <span class="desc">退换货、虚假宣传、欺诈等</span>
+    </a>
+  </div>
+
+  <!-- 底部免责声明入口 -->
+  <div style="text-align: center; margin-top: var(--space-16);">
+    <a href="/disclaimer" style="font-size: var(--text-sm); color: var(--color-gray-500); text-decoration: underline;">
+      使用须知与免责声明
+    </a>
+  </div>
+</div>
+{% endblock %}
