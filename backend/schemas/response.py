@@ -6,7 +6,7 @@
 from typing import Any, Optional, List
 from pydantic import BaseModel, Field
 
-from backend.utils.errcode import CodeSuccess, get_message
+from utils.errcode import CodeSuccess, get_message
 
 
 # ==================== 通用响应模型 ====================

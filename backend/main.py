@@ -38,11 +38,11 @@ from middleware.cors import setup_cors
 from middleware.rate_limiter import setup_rate_limiter
 
 # ── API 路由 ──
-from api.auth import auth_router
-from api.user import user_router
-from api.session import session_router
-from api.chat import chat_router
-from api.knowledge import knowledge_router
+from api.auth import router as auth_router
+from api.user import router as user_router
+from api.session import router as session_router
+from api.chat import router as chat_router
+from api.knowledge import router as knowledge_router
 
 # ── 工具层 ──
 from utils import errcode

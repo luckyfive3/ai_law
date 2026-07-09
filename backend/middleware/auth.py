@@ -7,13 +7,18 @@ AI法律助手 v1.0 — JWT 认证中间件
 """
 import jwt
 from typing import Optional, Dict, Any
-from fastapi import Request, HTTPException
+from fastapi import Request, HTTPException, Depends
 from config import Settings
 from utils.jwt_utils import decode_token
 from utils import errcode
 
 
-async def get_current_user(request: Request, settings: Settings) -> Dict[str, Any]:
+async def _get_settings(request: Request) -> Settings:
+    """从应用状态中获取配置"""
+    return request.app.state.settings
+
+
+async def get_current_user(request: Request, settings: Settings = Depends(_get_settings)) -> Dict[str, Any]:
     """
     JWT 认证依赖函数（强制）
     
@@ -77,7 +82,7 @@ async def get_current_user(request: Request, settings: Settings) -> Dict[str, An
     return user_info
 
 
-async def get_optional_user(request: Request, settings: Settings) -> Optional[Dict[str, Any]]:
+async def get_optional_user(request: Request, settings: Settings = Depends(_get_settings)) -> Optional[Dict[str, Any]]:
     """
     JWT 认证依赖函数（可选）
     

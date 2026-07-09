@@ -136,3 +136,8 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+# MongoDB本地数据目录
+mongodb_data/
+*.lock
+WiredTiger*

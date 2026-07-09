@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import AsyncGenerator, List
 
 from langchain_openai import ChatOpenAI
-from langchain.schema import AIMessage, HumanMessage, SystemMessage, BaseMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, BaseMessage
 from config import Settings
 
 logger = logging.getLogger(__name__)

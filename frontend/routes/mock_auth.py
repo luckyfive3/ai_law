@@ -17,8 +17,8 @@ router = APIRouter()
 # 用户数据存储文件
 DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "users.json"
 
-# JWT 签名密钥（每次启动随机生成，重启后所有 Token 失效）
-SECRET = secrets.token_hex(32)
+# JWT 签名密钥（与后端 .env 中的 JWT_SECRET 保持一致）
+SECRET = "dev-jwt-secret-change-in-production-32chars"
 
 
 def _load_users() -> dict:
@@ -52,36 +52,43 @@ def _verify_password(password: str, stored: str) -> bool:
 
 
 def _generate_token(user_id: str, username: str) -> str:
-    """生成 JWT 格式的访问令牌（简化版，使用 HMAC-SHA256 签名）
+    """生成标准 JWT Token（HMAC-SHA256，兼容 PyJWT 后端验证）
     user_id 为 MongoDB 风格的十六进制字符串（UUID 格式）"""
+    import hmac as _hmac
     header = {"alg": "HS256", "typ": "JWT"}
     payload = {
         "user_id": user_id,
         "username": username,
+        "sub": str(user_id),
         "exp": int(time.time()) + 86400,  # 24 小时过期
         "iat": int(time.time()),
+        "iss": "ai-law-assistant",
     }
-    h = hashlib.sha256
     b64 = lambda d: __import__("base64").urlsafe_b64encode(d).rstrip(b"=").decode()
     header_b64 = b64(json.dumps(header).encode())
     payload_b64 = b64(json.dumps(payload).encode())
     sig_raw = f"{header_b64}.{payload_b64}".encode()
-    sig = h(sig_raw + SECRET.encode()).hexdigest()
+    # 标准 HMAC-SHA256 签名 → base64url（与 PyJWT 一致）
+    sig = b64(_hmac.new(SECRET.encode(), sig_raw, hashlib.sha256).digest())
     return f"{header_b64}.{payload_b64}.{sig}"
 
 
 def _parse_token(token: str) -> dict | None:
     """解析 JWT Token，验证签名和过期时间"""
+    import hmac as _hmac
     try:
         parts = token.split(".")
         if len(parts) != 3:
             return None
         header_b64, payload_b64, sig = parts
-        b64 = lambda d: __import__("base64").urlsafe_b64decode(d + "=" * (len(d) % 4))
-        sig_check = hashlib.sha256(f"{header_b64}.{payload_b64}".encode() + SECRET.encode()).hexdigest()
+        b64d = lambda d: __import__("base64").urlsafe_b64decode(d + "=" * (len(d) % 4))
+        b64e = lambda d: __import__("base64").urlsafe_b64encode(d).rstrip(b"=").decode()
+        # 标准 HMAC-SHA256 验证（与 PyJWT 一致）
+        sig_raw = f"{header_b64}.{payload_b64}".encode()
+        sig_check = b64e(_hmac.new(SECRET.encode(), sig_raw, hashlib.sha256).digest())
         if sig != sig_check:
             return None
-        payload = json.loads(b64(payload_b64))
+        payload = json.loads(b64d(payload_b64))
         if payload.get("exp", 0) < time.time():
             return None
         return payload

@@ -1,7 +1,7 @@
 """API 代理路由 — 将前端请求转发到后端 Python 服务"""
 
 from fastapi import APIRouter, Request, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 import httpx
 import os
 import json
@@ -43,7 +43,15 @@ async def proxy_request(request: Request, path: str):
                 headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
             )
 
-        return resp.json()
+        # 透传 HTTP 状态码，并将后端 FastAPI 的 detail 嵌套格式展开
+        data = resp.json()
+        status_code = resp.status_code
+        if status_code >= 400 and "detail" in data:
+            # FastAPI HTTPException 会把错误包在 {"detail": {...}} 中，展开它
+            detail = data["detail"]
+            if isinstance(detail, dict) and "code" in detail:
+                return JSONResponse(content=detail, status_code=status_code)
+        return JSONResponse(content=data, status_code=status_code)
     except httpx.ConnectError:
         raise HTTPException(status_code=503, detail="后端服务暂不可用")
     finally:

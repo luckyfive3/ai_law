@@ -55,4 +55,4 @@ async def server_error_handler(request: Request, exc):
 
 if __name__ == "__main__":
     # 前端服务监听 3000 端口，代理请求到后端 8080 端口
-    uvicorn.run("main:app", host="0.0.0.0", port=3000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=3000, reload=False)
