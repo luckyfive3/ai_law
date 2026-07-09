@@ -2,26 +2,34 @@
 chcp 65001 >nul
 setlocal enabledelayedexpansion
 
-:: ═══════════════════════════════════════════════════════
-:: AI法律助手 v2.0 — Windows 统一启动脚本
+:: =============================================================
+:: AI法律助手 v1.0 — Windows 一键启动脚本
 :: 用法: start.bat [命令]
 ::   (无参数)   → 交互式菜单
 ::   install    → 安装所有依赖
-::   start      → 启动前后端（两个窗口）
+::   start      → 启动全部服务(MongoDB+后端+前端)
 ::   backend    → 仅启动后端
 ::   frontend   → 仅启动前端
 ::   stop       → 停止所有服务
 ::   status     → 查看服务状态
-::   docker     → Docker 开发环境一键启动
-:: ═══════════════════════════════════════════════════════
+:: =============================================================
 
 set "ROOT=%~dp0"
+set "ROOT=%ROOT:~0,-1%"
 cd /d "%ROOT%"
 
 :: ── 检查 Python ──
 where python >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [错误] 未找到 Python，请先安装 Python 3.11+
+    echo [ERROR] Python not found, please install Python 3.11+
+    pause
+    exit /b 1
+)
+
+:: ── 检查 Node.js ──
+where node >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [ERROR] Node.js not found, please install Node.js
     pause
     exit /b 1
 )
@@ -29,157 +37,213 @@ if %errorlevel% neq 0 (
 :: ── 解析命令参数 ──
 set "CMD=%~1"
 if "%CMD%"=="" goto menu
-goto cmd_%CMD% 2>nul || (
-    echo [错误] 未知命令: %CMD%
-    echo 可用命令: install, start, backend, frontend, stop, status, docker
-    exit /b 1
-)
+if /i "%CMD%"=="install"  goto cmd_install
+if /i "%CMD%"=="start"    goto cmd_start
+if /i "%CMD%"=="backend"  goto cmd_backend
+if /i "%CMD%"=="frontend" goto cmd_frontend
+if /i "%CMD%"=="stop"     goto cmd_stop
+if /i "%CMD%"=="status"   goto cmd_status
+echo [ERROR] Unknown command: %CMD%
+echo Available: install, start, backend, frontend, stop, status
+exit /b 1
 
-:: ═══════════════════════════════════════
+:: =============================================================
 :: 交互式菜单
-:: ═══════════════════════════════════════
+:: =============================================================
 :menu
 echo.
-echo  ╔══════════════════════════════════════════╗
-echo  ║     AI法律助手 v2.0 — 启动管理         ║
-echo  ╠══════════════════════════════════════════╣
-echo  ║  [1] 安装依赖                           ║
-echo  ║  [2] 启动全部服务（前端 + 后端）        ║
-echo  ║  [3] 仅启动后端 (port 8080)             ║
-echo  ║  [4] 仅启动前端 (port 3000)             ║
-echo  ║  [5] 停止所有服务                       ║
-echo  ║  [6] 查看服务状态                       ║
-echo  ║  [D] Docker 开发环境一键启动            ║
-echo  ║  [Q] 退出                               ║
-echo  ╚══════════════════════════════════════════╝
+echo  ========================================
+echo    AI Legal Assistant v1.0 - Menu
+echo  ========================================
+echo    [1] Install dependencies
+echo    [2] Start ALL (MongoDB + Backend + Frontend)
+echo    [3] Start Backend only (port 8080)
+echo    [4] Start Frontend only (port 3000)
+echo    [5] Stop all services
+echo    [6] Check service status
+echo    [Q] Quit
+echo  ========================================
 echo.
-set /p CHOICE="请输入选项: "
+set /p CHOICE="Enter option: "
 
-if /i "%CHOICE%"=="1" goto cmd_install
-if /i "%CHOICE%"=="2" goto cmd_start
-if /i "%CHOICE%"=="3" goto cmd_backend
-if /i "%CHOICE%"=="4" goto cmd_frontend
-if /i "%CHOICE%"=="5" goto cmd_stop
-if /i "%CHOICE%"=="6" goto cmd_status
-if /i "%CHOICE%"=="D" goto cmd_docker
-if /i "%CHOICE%"=="d" goto cmd_docker
+if "%CHOICE%"=="1" goto cmd_install
+if "%CHOICE%"=="2" goto cmd_start
+if "%CHOICE%"=="3" goto cmd_backend
+if "%CHOICE%"=="4" goto cmd_frontend
+if "%CHOICE%"=="5" goto cmd_stop
+if "%CHOICE%"=="6" goto cmd_status
 if /i "%CHOICE%"=="Q" exit /b 0
-if /i "%CHOICE%"=="q" exit /b 0
-
-echo [错误] 无效选项
+echo [ERROR] Invalid option
 goto menu
 
-:: ═══════════════════════════════════════
-:: [1] 安装所有依赖
-:: ═══════════════════════════════════════
+:: =============================================================
+:: [1] Install dependencies
+:: =============================================================
 :cmd_install
 echo.
-echo [安装] 正在安装 Python 依赖...
-pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
-if %errorlevel% equ 0 (
-    echo [完成] 所有依赖安装成功！
-) else (
-    echo [错误] 依赖安装失败，请检查网络或 pip 配置
+echo [1/2] Installing backend dependencies...
+pip install -r "%ROOT%\backend\requirements.txt"
+if %errorlevel% neq 0 (
+    echo [ERROR] Backend dependency installation failed
+    goto install_end
 )
-if "%CMD%"=="" pause && goto menu
-exit /b 0
+echo [1/2] Backend dependencies OK
 
-:: ═══════════════════════════════════════
-:: [2] 启动全部服务
-:: ═══════════════════════════════════════
-:cmd_start
 echo.
-echo [启动] 正在启动前后端服务...
-echo   后端 → http://localhost:8080
-echo   前端 → http://localhost:3000
+echo [2/2] Installing frontend dependencies...
+pip install -r "%ROOT%\frontend\requirements.txt"
+if %errorlevel% neq 0 (
+    echo [ERROR] Frontend dependency installation failed
+    goto install_end
+)
+echo [2/2] Frontend dependencies OK
+
 echo.
-echo 提示: 关闭窗口即可停止对应服务
-
-start "AI法律助手-后端" cmd /k "cd /d "%ROOT%backend" && title AI法律助手-后端 :8080 && uvicorn main:app --host 0.0.0.0 --port 8080 --reload"
-timeout /t 2 >nul
-start "AI法律助手-前端" cmd /k "cd /d "%ROOT%frontend" && title AI法律助手-前端 :3000 && uvicorn main:app --host 0.0.0.0 --port 3000 --reload"
-
+echo [DONE] All dependencies installed successfully!
+:install_end
+if "%CMD%"=="" pause
 if "%CMD%"=="" goto menu
 exit /b 0
 
-:: ═══════════════════════════════════════
-:: [3] 仅启动后端
-:: ═══════════════════════════════════════
+:: =============================================================
+:: [2] Start ALL services
+:: =============================================================
+:cmd_start
+echo.
+echo ========================================
+echo   Starting all services...
+echo ========================================
+
+:: --- MongoDB ---
+echo [1/3] Starting MongoDB...
+start "MongoDB" cmd /k "cd /d "%ROOT%" && title MongoDB :27017 && node start_mongodb.js"
+timeout /t 3 >nul
+echo        MongoDB started (port 27017)
+
+:: --- Backend ---
+echo [2/3] Starting Backend...
+start "AI-Law-Backend" cmd /k "cd /d "%ROOT%\backend" && title Backend :8080 && python main.py"
+timeout /t 4 >nul
+echo        Backend started (http://localhost:8080)
+
+:: --- Frontend ---
+echo [3/3] Starting Frontend...
+start "AI-Law-Frontend" cmd /k "cd /d "%ROOT%\frontend" && title Frontend :3000 && python main.py"
+timeout /t 2 >nul
+echo        Frontend started (http://localhost:3000)
+
+:: --- Open browser ---
+start http://localhost:3000
+
+echo.
+echo ========================================
+echo   All services started!
+echo   Frontend: http://localhost:3000
+echo   Backend:  http://localhost:8080
+echo   MongoDB:  localhost:27017
+echo ========================================
+
+if "%CMD%"=="" pause
+if "%CMD%"=="" goto menu
+exit /b 0
+
+:: =============================================================
+:: [3] Start Backend only
+:: =============================================================
 :cmd_backend
 echo.
-echo [启动] 正在启动后端服务 → http://localhost:8080
-start "AI法律助手-后端" cmd /k "cd /d "%ROOT%backend" && title AI法律助手-后端 :8080 && uvicorn main:app --host 0.0.0.0 --port 8080 --reload"
-if "%CMD%"=="" pause && goto menu
+echo Starting Backend (port 8080)...
+
+:: MongoDB is required by backend
+call :ensure_mongodb
+
+start "AI-Law-Backend" cmd /k "cd /d "%ROOT%\backend" && title Backend :8080 && python main.py"
+timeout /t 4 >nul
+echo Backend started: http://localhost:8080
+
+if "%CMD%"=="" pause
+if "%CMD%"=="" goto menu
 exit /b 0
 
-:: ═══════════════════════════════════════
-:: [4] 仅启动前端
-:: ═══════════════════════════════════════
+:: =============================================================
+:: [4] Start Frontend only
+:: =============================================================
 :cmd_frontend
 echo.
-echo [启动] 正在启动前端服务 → http://localhost:3000
-start "AI法律助手-前端" cmd /k "cd /d "%ROOT%frontend" && title AI法律助手-前端 :3000 && uvicorn main:app --host 0.0.0.0 --port 3000 --reload"
-if "%CMD%"=="" pause && goto menu
+echo Starting Frontend (port 3000)...
+start "AI-Law-Frontend" cmd /k "cd /d "%ROOT%\frontend" && title Frontend :3000 && python main.py"
+timeout /t 2 >nul
+echo Frontend started: http://localhost:3000
+start http://localhost:3000
+
+if "%CMD%"=="" pause
+if "%CMD%"=="" goto menu
 exit /b 0
 
-:: ═══════════════════════════════════════
-:: [5] 停止所有服务
-:: ═══════════════════════════════════════
+:: =============================================================
+:: [5] Stop all services
+:: =============================================================
 :cmd_stop
 echo.
-echo [停止] 正在关闭所有服务...
-taskkill /fi "WINDOWTITLE eq AI法律助手-后端*" /f 2>nul
-taskkill /fi "WINDOWTITLE eq AI法律助手-前端*" /f 2>nul
-:: 备用: 按端口杀进程
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8080" ^| findstr "LISTENING"') do taskkill /f /pid %%a 2>nul
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":3000" ^| findstr "LISTENING"') do taskkill /f /pid %%a 2>nul
-echo [完成] 服务已停止
-if "%CMD%"=="" pause && goto menu
+echo Stopping all services...
+
+:: MongoDB
+taskkill /fi "WINDOWTITLE eq MongoDB*" /f 2>nul
+:: Backend & Frontend
+taskkill /fi "WINDOWTITLE eq AI-Law-Backend*" /f 2>nul
+taskkill /fi "WINDOWTITLE eq AI-Law-Frontend*" /f 2>nul
+
+:: Fallback: kill by port
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":27017" ^| findstr "LISTENING"') do taskkill /f /pid %%a 2>nul
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8080"  ^| findstr "LISTENING"') do taskkill /f /pid %%a 2>nul
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":3000"  ^| findstr "LISTENING"') do taskkill /f /pid %%a 2>nul
+
+echo All services stopped.
+
+if "%CMD%"=="" pause
+if "%CMD%"=="" goto menu
 exit /b 0
 
-:: ═══════════════════════════════════════
-:: [6] 查看服务状态
-:: ═══════════════════════════════════════
+:: =============================================================
+:: [6] Check service status
+:: =============================================================
 :cmd_status
 echo.
-echo ═══════════════════════════════════════
-echo  服务状态检查
-echo ═══════════════════════════════════════
+echo ========================================
+echo   Service Status
+echo ========================================
+
+call :check_port "MongoDB" 27017
+call :check_port "Backend" 8080
+call :check_port "Frontend" 3000
+
 echo.
-echo --- 后端 (8080) ---
-netstat -ano | findstr ":8080.*LISTENING" >nul 2>&1
-if %errorlevel% equ 0 (
-    for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8080.*LISTENING"') do echo [运行中] PID: %%a
-) else (
-    echo [未运行]
-)
-echo.
-echo --- 前端 (3000) ---
-netstat -ano | findstr ":3000.*LISTENING" >nul 2>&1
-if %errorlevel% equ 0 (
-    for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":3000.*LISTENING"') do echo [运行中] PID: %%a
-) else (
-    echo [未运行]
-)
-echo.
-if "%CMD%"=="" pause && goto menu
+if "%CMD%"=="" pause
+if "%CMD%"=="" goto menu
 exit /b 0
 
-:: ═══════════════════════════════════════
-:: [D] Docker 开发环境一键启动
-:: ═══════════════════════════════════════
-:cmd_docker
-echo.
-echo [Docker] 正在启动开发环境容器...
-docker compose up -d
+:: =============================================================
+:: Helper: Check if port is listening
+:: =============================================================
+:check_port
+netstat -ano | findstr ":%2 " | findstr "LISTENING" >nul 2>&1
 if %errorlevel% equ 0 (
-    echo [完成] Docker 开发环境已启动！
-    echo   后端:    http://localhost:8080
-    echo   前端:    http://localhost:3000
-    echo   MongoDB: localhost:27017
-    echo   RAGFlow: http://localhost:9380
+    for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":%2 " ^| findstr "LISTENING"') do (
+        echo   [RUNNING] %~1 (port %~2, PID: %%a)
+    )
 ) else (
-    echo [错误] Docker 启动失败，请检查 Docker Desktop 是否运行
+    echo   [STOPPED] %~1 (port %~2)
 )
-if "%CMD%"=="" pause && goto menu
+exit /b 0
+
+:: =============================================================
+:: Helper: Ensure MongoDB is running
+:: =============================================================
+:ensure_mongodb
+netstat -ano | findstr ":27017 " | findstr "LISTENING" >nul 2>&1
+if %errorlevel% neq 0 (
+    echo        MongoDB not running, starting...
+    start "MongoDB" cmd /k "cd /d "%ROOT%" && title MongoDB :27017 && node start_mongodb.js"
+    timeout /t 3 >nul
+)
 exit /b 0
