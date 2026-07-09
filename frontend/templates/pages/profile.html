@@ -12,7 +12,7 @@
       <div class="profile-avatar" id="profileAvatar">用</div>
       <div>
         <div id="profileNickname" style="font-size: var(--text-lg); font-weight: 600;">法律助手用户</div>
-        <div id="profilePhone" style="font-size: var(--text-sm); color: var(--color-gray-500);">未登录</div>
+        <div id="profileUsername" style="font-size: var(--text-sm); color: var(--color-gray-500);">未登录</div>
       </div>
       <button id="editNicknameBtn" class="btn btn-outline btn-sm" style="margin-left: auto;">编辑</button>
     </div>
@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 加载用户信息
   if (user) {
     document.getElementById('profileNickname').textContent = user.nickname || '法律助手用户';
-    document.getElementById('profilePhone').textContent = user.phone || '***';
+    document.getElementById('profileUsername').textContent = user.username || '***';
     document.getElementById('profileAvatar').textContent = (user.nickname || '用')[0];
   }
 
