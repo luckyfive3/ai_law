@@ -1,0 +1,108 @@
+version: '3.8'
+
+# ═══════════════════════════════════════
+# AI法律助手 v1.0 — 阿里云生产部署
+# 启动: docker compose -f docker-compose.prod.yml up -d
+# ═══════════════════════════════════════
+
+services:
+
+  # ========== Nginx 反向代理 ==========
+  nginx:
+    image: nginx:1.25-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/certs:/etc/nginx/certs:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+    networks:
+      - ai-law-net
+
+  # ========== 前端 SSR (Python FastAPI + Jinja2) ==========
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    expose:
+      - "3000"
+    environment:
+      - BACKEND_URL=http://backend:8080
+
+  # ========== 原 dev compose 里已有的 backend 从这儿补充 ==========
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    expose:
+      - "8080"
+    environment:
+      - DB_HOST=postgres
+      - DB_USER=${DB_USER:-ailaw}
+      - DB_PASSWORD=${DB_PASSWORD:-ailaw123}
+      - REDIS_HOST=redis
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - JWT_SECRET=${JWT_SECRET:-dev-jwt-secret-change-in-production}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - CONFIG_PATH=/app/config/config.yaml
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ai-law-net
+
+  # ========== PostgreSQL 15 ==========
+  postgres:
+    image: postgres:15-alpine
+    expose:
+      - "5432"
+    environment:
+      POSTGRES_DB: ai_law
+      POSTGRES_USER: ${DB_USER:-ailaw}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ailaw123}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-ailaw} -d ai_law"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - ai-law-net
+
+  # ========== Redis 7 ==========
+  redis:
+    image: redis:7-alpine
+    expose:
+      - "6379"
+    command: redis-server --appendonly yes ${REDIS_PASSWORD:+--requirepass $REDIS_PASSWORD}
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - ai-law-net
+
+volumes:
+  pgdata:
+  redisdata:
+  nginx_logs:
+
+networks:
+  ai-law-net:
+    driver: bridge

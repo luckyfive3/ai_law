@@ -112,8 +112,10 @@ func Load(configPath string) (*Config, error) {
 	}
 
 	// 从环境变量覆盖敏感配置
+	cfg.Database.Host = envOr("DB_HOST", cfg.Database.Host)
 	cfg.Database.User = envOr("DB_USER", cfg.Database.User)
 	cfg.Database.Password = envOr("DB_PASSWORD", cfg.Database.Password)
+	cfg.Redis.Host = envOr("REDIS_HOST", cfg.Redis.Host)
 	cfg.Redis.Password = envOr("REDIS_PASSWORD", cfg.Redis.Password)
 	cfg.JWT.Secret = envOr("JWT_SECRET", cfg.JWT.Secret)
 	cfg.LLM.APIKey = envOr("DEEPSEEK_API_KEY", cfg.LLM.APIKey)

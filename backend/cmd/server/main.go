@@ -115,7 +115,7 @@ func main() {
 		// 鉴权模块（无需登录）
 		auth := v1.Group("/auth")
 		{
-			auth.POST("/register", authHandler.Register)
+			auth.POST("/send-code", authHandler.SendCode)
 			auth.POST("/login", authHandler.Login)
 			auth.POST("/refresh", authHandler.RefreshToken)
 			auth.POST("/logout", authHandler.Logout)
