@@ -1,7 +1,7 @@
 version: '3.8'
 
 # ═══════════════════════════════════════
-# AI法律助手 v2.0 — 开发环境
+# AI法律助手 v2.0 — 开发环境（完整前后端）
 # 启动: docker compose up -d
 # 停止: docker compose down
 # ═══════════════════════════════════════
@@ -25,6 +25,21 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ai-law-net
+
+  # ========== Python FastAPI 前端 SSR ==========
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - BACKEND_URL=http://backend:8080
+    depends_on:
+      - backend
     restart: unless-stopped
     networks:
       - ai-law-net
