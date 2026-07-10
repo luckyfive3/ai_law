@@ -128,8 +128,11 @@ class ChatService:
             yield {"status": "error", "error": "内容包含敏感信息，请修改后重试"}
             return
 
-        # ── 2. 保存用户消息 ──
+        # ── 2. 立即通知前端"正在检索"，让用户看到即时反馈 ──
         now = datetime.now(timezone.utc).isoformat()
+        yield {"status": "searching"}
+
+        # ── 3. 保存用户消息 ──
         user_msg_doc = {
             "session_id": session_id,
             "role": "user",
@@ -199,10 +202,7 @@ class ChatService:
             {"role": "user", "content": legal_context},
         ]
 
-        # ── 7. Yield "searching" 状态 ──
-        yield {"status": "searching", "index": 0}
-
-        # ── 8. 流式 LLM 生成 ──
+        # ── 7. 流式 LLM 生成 ──
         full_content = ""
         index = 0
         stream_error = False
@@ -222,9 +222,6 @@ class ChatService:
         # ── 9. 后处理 ──
         if not full_content:
             full_content = self.safety_filter.get_fallback_message()
-
-        # 附加免责声明
-        full_content = self.safety_filter.append_disclaimer(full_content)
 
         # ── 10. 保存 AI 消息 ──
         now = datetime.now(timezone.utc).isoformat()

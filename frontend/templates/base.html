@@ -14,7 +14,7 @@
 <link rel="stylesheet" href="/static/css/markdown.css">
 {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
   <!-- Header 导航栏 -->
   {% include 'components/header.html' %}
 

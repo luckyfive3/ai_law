@@ -88,6 +88,8 @@ async def send_message(
 
         逐条从 chat_service.send_message() 中获取数据块，
         根据 status 字段格式化为对应的 SSE 事件。
+
+        协议: thinking → chunk* → done
         """
         try:
             async for chunk in chat_service.send_message(
@@ -100,65 +102,48 @@ async def send_message(
                 status = chunk.get("status", "")
 
                 if status == "searching":
-                    # 正在检索法律知识库
                     data = json.dumps({
                         "status": "searching",
-                        "index": chunk.get("index", 0),
                     }, ensure_ascii=False)
-                    yield f"event: thinking\ndata: {data}\n\n"
+                    yield f"data: {data}\n\n"
 
                 elif status == "generating":
-                    # AI 生成中的文本片段
                     data = json.dumps({
-                        "status": "generating",
                         "content": chunk.get("content", ""),
-                        "index": chunk.get("index", 0),
                     }, ensure_ascii=False)
-                    yield f"event: chunk\ndata: {data}\n\n"
-
-                elif chunk.get("done") is True and chunk.get("laws"):
-                    # 生成完成且包含法律引用
-                    data = json.dumps({
-                        "done": True,
-                        "laws": chunk.get("laws", []),
-                    }, ensure_ascii=False)
-                    yield f"event: law_ref\ndata: {data}\n\n"
+                    yield f"data: {data}\n\n"
 
                 elif chunk.get("done") is True:
-                    # 生成完成（无法律引用或已发送引用）
+                    # 生成完成，统一在此发送 message_id、laws、tokens
                     data = json.dumps({
                         "done": True,
-                        "status": "done",
                         "message_id": chunk.get("message_id", ""),
+                        "laws": chunk.get("laws", []),
                         "tokens": chunk.get("tokens", {}),
                     }, ensure_ascii=False)
-                    yield f"event: done\ndata: {data}\n\n"
+                    yield f"data: {data}\n\n"
 
                 elif status == "error":
-                    # 发生错误
                     data = json.dumps({
                         "status": "error",
                         "error": chunk.get("error", "未知错误"),
                     }, ensure_ascii=False)
-                    yield f"event: error\ndata: {data}\n\n"
+                    yield f"data: {data}\n\n"
 
                 else:
-                    # 兜底处理：未知状态按 generating 处理
+                    # 兜底处理
                     data = json.dumps({
-                        "status": "generating",
                         "content": chunk.get("content", ""),
-                        "index": chunk.get("index", 0),
                     }, ensure_ascii=False)
-                    yield f"event: chunk\ndata: {data}\n\n"
+                    yield f"data: {data}\n\n"
 
         except Exception as gen_error:
-            # 生成器内部异常，发送错误事件
             logger.error(f"SSE 生成器异常: {gen_error}", exc_info=True)
             data = json.dumps({
                 "status": "error",
                 "error": "服务暂时不可用，请稍后再试",
             }, ensure_ascii=False)
-            yield f"event: error\ndata: {data}\n\n"
+            yield f"data: {data}\n\n"
 
     # 返回 StreamingResponse，关闭连接时记录日志
     async def on_close():

@@ -5,8 +5,30 @@
 <div class="container" style="padding-top: var(--space-6); padding-bottom: var(--space-12); max-width: 800px;">
 
   <!-- 页面标题 -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-6);">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-4);">
     <h1 style="font-size:var(--text-2xl);font-weight:600;">历史记录</h1>
+  </div>
+
+  <!-- 搜索框 -->
+  <div class="history-search" style="margin-bottom:var(--space-4);">
+    <div style="position:relative;">
+      <input
+        id="historySearch"
+        type="text"
+        class="input"
+        placeholder="搜索历史记录…"
+        style="padding-right:36px;"
+      />
+      <button id="clearSearchBtn" style="
+        position:absolute; right:4px; top:50%; transform:translateY(-50%);
+        background:none; border:none; cursor:pointer; padding:6px; color:var(--color-gray-400);
+        display:none;
+      " title="清除搜索">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
   </div>
 
   <!-- 加载中 -->

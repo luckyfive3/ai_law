@@ -72,6 +72,7 @@ async def list_sessions(
     request: Request,
     page: int = Query(default=1, ge=1, description="页码"),
     page_size: int = Query(default=20, ge=1, le=50, description="每页数量"),
+    keyword: str = Query(default="", description="搜索关键词，匹配标题和消息内容"),
     current_user=Depends(get_current_user),
     session_service=Depends(get_session_service),
 ):
@@ -94,6 +95,7 @@ async def list_sessions(
             user_id=user_id,
             page=page,
             page_size=page_size,
+            keyword=keyword,
         )
 
         logger.info(f"获取会话列表成功: user_id={user_id}, total={total}")
