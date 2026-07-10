@@ -14,7 +14,7 @@ API_PREFIX = "/api/v1"
 
 async def proxy_request(request: Request, path: str):
     """通用代理：将请求转发到后端 Python 服务"""
-    client = httpx.AsyncClient(timeout=30.0)
+    client = httpx.AsyncClient(timeout=30.0, trust_env=False)
     body = None
     if request.method in ("POST", "PUT", "PATCH"):
         body = await request.body()

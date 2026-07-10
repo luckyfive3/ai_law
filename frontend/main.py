@@ -23,8 +23,9 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 # 页面路由（Jinja2 模板渲染）
 app.include_router(pages_router)
 
-# 本地模拟认证路由（开发环境使用，无需后端），必须在代理路由之前注册
-app.include_router(mock_auth_router)
+# 本地模拟认证路由（开发环境使用，无需后端）
+# 注：后端已启动时注释掉，让代理转发到后端处理
+# app.include_router(mock_auth_router)
 
 # API 代理路由 —— 将 /api/v1/proxy/* 转发到后端 Python 服务
 app.include_router(api_router, prefix="/api/v1/proxy")
