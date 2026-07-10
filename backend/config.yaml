@@ -30,7 +30,7 @@ llm:
 
 ragflow:
   base_url: "http://123.57.85.126"
-  top_k: 5
+  top_k: 10
   similarity_threshold: 0.2
   timeout: 10s
 

@@ -82,6 +82,23 @@ class KnowledgeService:
         ]
 
     # ═══════════════════════════════════════
+    # RAGFlow 文档列表
+    # ═══════════════════════════════════════
+
+    async def get_ragflow_documents(self) -> list:
+        """
+        从 RAGFlow 获取全部文档列表
+
+        Returns:
+            文档列表，每项包含: id, name, category, year, chunks, tokens
+        """
+        try:
+            return await self.ragflow_client.list_documents()
+        except Exception as e:
+            logger.error(f"获取 RAGFlow 文档列表失败: {e}")
+            return []
+
+    # ═══════════════════════════════════════
     # 法律分类
     # ═══════════════════════════════════════
 
@@ -181,81 +198,61 @@ class KnowledgeService:
 
     async def get_law_detail(self, law_id: str) -> dict:
         """
-        获取法条详情
+        获取法条详情（从 RAGFlow 获取文档块）
 
         Args:
-            law_id: 法条标识
+            law_id: 法条/文档 ID（RAGFlow document_id）
 
         Returns:
             法条详情字典:
-                - id: 法条ID
-                - name: 法律名称
-                - year: 颁布年份
-                - articles: 条款列表 [{num, content}]
+                - id: 文档ID
+                - name: 文档名称
+                - chunks: chunk 列表 [{content}]
 
         Raises:
-            ValueError: 法条不存在
+            ValueError: 文档不存在
         """
-        # 先从本地数据查找
-        laws_data = self._load_laws_data()
-        if laws_data:
-            try:
-                lid = int(law_id)
-                law = next((l for l in laws_data if l.get("id") == lid), None)
-                if law:
-                    return {
-                        "id": law.get("id"),
-                        "name": law.get("name", ""),
-                        "year": law.get("year", ""),
-                        "articles": law.get("articles", []),
-                    }
-            except (ValueError, TypeError):
-                # 如果 law_id 不是数字，尝试按名称搜索
-                for law in laws_data:
-                    if law_id in law.get("name", ""):
+        # 从 RAGFlow 获取文档块
+        try:
+            chunks = await self.ragflow_client.get_document_chunks(law_id)
+        except Exception as e:
+            logger.warning(f"RAGFlow 获取文档块失败: {e}")
+            chunks = []
+
+        if not chunks:
+            # 尝试从本地数据查找
+            laws_data = self._load_laws_data()
+            if laws_data:
+                try:
+                    lid = int(law_id)
+                    law = next((l for l in laws_data if l.get("id") == lid), None)
+                    if law:
                         return {
                             "id": law.get("id"),
                             "name": law.get("name", ""),
                             "year": law.get("year", ""),
-                            "articles": law.get("articles", []),
+                            "chunks": [{"content": a.get("content", "")} for a in law.get("articles", [])],
                         }
+                except (ValueError, TypeError):
+                    pass
+            raise ValueError("文档不存在或未解析")
 
-        # 通过 RAGFlow 检索获取法条详情
+        # 从文档列表中查找文档名称
+        doc_name = "未知法律"
         try:
-            results = await self.ragflow_client.search(
-                query=law_id,
-                top_k=1,
-            )
+            docs = await self.ragflow_client.list_documents()
+            for d in docs:
+                if d.get("id") == law_id:
+                    doc_name = d.get("name", doc_name)
+                    break
         except Exception:
-            results = []
+            pass
 
-        if not results:
-            # 尝试降级搜索
-            fallback = self.fallback_search(law_id)
-            if fallback:
-                item = fallback[0]
-                return {
-                    "id": 1,
-                    "name": item.get("law_name", ""),
-                    "articles": [
-                        {
-                            "num": item.get("article_num", ""),
-                            "content": item.get("law_text", ""),
-                        }
-                    ],
-                }
-            raise ValueError("法条不存在")
-
-        first = results[0]
         return {
-            "id": 1,
-            "name": first.get("law_name", ""),
-            "articles": [
-                {
-                    "num": first.get("article_num", ""),
-                    "content": first.get("law_text", ""),
-                }
-            ],
+            "id": law_id,
+            "name": doc_name,
+            "year": "",
+            "chunks": chunks,
         }
 
     # ═══════════════════════════════════════

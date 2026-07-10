@@ -20,160 +20,122 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script src="/static/js/laws_data.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-  const lawId = {{ law_id | int }};
+document.addEventListener('DOMContentLoaded', async () => {
+  const lawId = '{{ law_id }}';
   const container = document.getElementById('lawDetail');
 
-  // 从真实数据中查找对应法律
-  const lawData = (window.LAWS_DATA || []).find(l => l.id === lawId);
+  async function loadDetail() {
+    try {
+      const resp = await Api.get(`knowledge/laws/${lawId}`);
+      const lawData = resp.data;
+      if (!lawData || !lawData.chunks) throw new Error('无数据');
 
-  if (!lawData) {
+      renderDetail(lawData);
+    } catch (e) {
+      container.innerHTML = `
+        <div class="empty-state" style="display:flex;">
+          <div class="icon">📚</div>
+          <div class="title">未找到该文档</div>
+          <div class="desc">该文档可能尚未解析完成，请返回知识库</div>
+        </div>`;
+    }
+  }
+
+  function renderDetail(lawData) {
+    const chunks = lawData.chunks || [];
+    const urlParams = new URLSearchParams(window.location.search);
+    const searchQuery = urlParams.get('q') || '';
+
     container.innerHTML = `
-      <div class="empty-state" style="display:flex;">
-        <div class="icon">📚</div>
-        <div class="title">未找到该法条</div>
-        <div class="desc">请返回知识库重新选择</div>
+      <h1 style="font-size: var(--text-2xl); font-weight: 700; margin-bottom: var(--space-2);">
+        ${escapeHtml(lawData.name)}
+      </h1>
+      <p style="font-size: var(--text-sm); color: var(--color-gray-500); margin-bottom: var(--space-4);">
+        ${escapeHtml(lawData.year || '')} · 共 ${chunks.length} 个知识块
+      </p>
+
+      <div class="search-box" style="margin-bottom: var(--space-6);">
+        <span class="search-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+          </svg>
+        </span>
+        <input id="articleSearch" class="input" type="text"
+          placeholder="搜索文本内容…" autocomplete="off" value="${escapeHtml(searchQuery)}"/>
+      </div>
+
+      <div id="articleSearchInfo" class="search-stats" style="display:none;"></div>
+
+      <div style="background:#fff;border:1px solid var(--color-gray-200);border-radius:var(--radius-xl);overflow:hidden;" id="articlesContainer">
+        ${chunks.map((c, idx) => `
+          <div class="article-block" data-chunk-idx="${idx}" style="padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--color-gray-100);">
+            <div style="font-weight: 600; color: var(--color-primary-700); margin-bottom: var(--space-2); font-size: var(--text-xs);">
+              知识块 #${idx + 1}
+            </div>
+            <p class="article-content" style="font-size: var(--text-sm); color: var(--color-gray-700); line-height: 1.8;">${escapeHtml(c.content)}</p>
+          </div>
+        `).join('')}
       </div>
     `;
-    return;
-  }
 
-  // 格式化法条编号：去掉"第"和"条"（修复"第第"问题）
-  function formatArticleNum(num) {
-    return num.replace(/^第/, '').replace(/条$/, '');
-  }
+    // 页内搜索
+    const articleSearch = document.getElementById('articleSearch');
+    const articleSearchInfo = document.getElementById('articleSearchInfo');
+    const articlesContainer = document.getElementById('articlesContainer');
+    let articleSearchTimeout = null;
 
-  // 解析 URL 中的搜索参数
-  const urlParams = new URLSearchParams(window.location.search);
-  const searchQuery = urlParams.get('q') || '';
+    function highlightArticleText(text, query) {
+      if (!query) return escapeHtml(text);
+      const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(${escapedQuery})`, 'gi');
+      return escapeHtml(text).replace(regex, '<mark class="highlight">$1</mark>');
+    }
 
-  container.innerHTML = `
-    <h1 style="font-size: var(--text-2xl); font-weight: 700; margin-bottom: var(--space-2);">
-      ${escapeHtml(lawData.name)}
-    </h1>
-    <p style="font-size: var(--text-sm); color: var(--color-gray-500); margin-bottom: var(--space-4);">
-      ${escapeHtml(lawData.year)} · 共 ${lawData.articleCount} 条
-    </p>
+    function filterArticles() {
+      const query = articleSearch.value.trim().toLowerCase();
+      const allBlocks = articlesContainer.querySelectorAll('.article-block');
+      let matchCount = 0;
 
-    <!-- 页内搜索 -->
-    <div class="search-box" style="margin-bottom: var(--space-6);">
-      <span class="search-icon">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-        </svg>
-      </span>
-      <input
-        id="articleSearch"
-        class="input"
-        type="text"
-        placeholder="在本法中搜索法条内容…"
-        autocomplete="off"
-        value="${escapeHtml(searchQuery)}"
-      />
-    </div>
+      allBlocks.forEach(block => {
+        const idx = parseInt(block.dataset.chunkIdx);
+        const originalContent = chunks[idx] ? chunks[idx].content : '';
+        const contentEl = block.querySelector('.article-content');
 
-    <!-- 搜索结果提示 -->
-    <div id="articleSearchInfo" class="search-stats" style="display:none;"></div>
+        if (!query) {
+          block.style.display = '';
+          if (contentEl) contentEl.innerHTML = escapeHtml(originalContent);
+          return;
+        }
 
-    <div style="background:#fff;border:1px solid var(--color-gray-200);border-radius:var(--radius-xl);overflow:hidden;" id="articlesContainer">
-      ${lawData.articles.map((a, idx) => {
-        const numDisplay = formatArticleNum(a.num);
-        return `
-        <div data-article-num="${escapeHtml(numDisplay)}" class="article-block" id="article-${escapeHtml(numDisplay)}" style="padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--color-gray-100); transition: background var(--transition-fast);">
-          <div style="font-weight: 600; color: var(--color-primary-700); margin-bottom: var(--space-2); font-size: var(--text-sm);">
-            第${escapeHtml(numDisplay)}条
-          </div>
-          <p class="article-content" style="font-size: var(--text-sm); color: var(--color-gray-700); line-height: 1.8;">${escapeHtml(a.content)}</p>
-        </div>
-      `}).join('')}
-    </div>
-  `;
-
-  // ── 页内搜索功能 ──
-  const articleSearch = document.getElementById('articleSearch');
-  const articleSearchInfo = document.getElementById('articleSearchInfo');
-  const articlesContainer = document.getElementById('articlesContainer');
-  let articleSearchTimeout = null;
-
-  function highlightArticleText(text, query) {
-    if (!query) return escapeHtml(text);
-    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`(${escapedQuery})`, 'gi');
-    return escapeHtml(text).replace(regex, '<mark class="highlight">$1</mark>');
-  }
-
-  function filterArticles() {
-    const query = articleSearch.value.trim().toLowerCase();
-    const allBlocks = articlesContainer.querySelectorAll('.article-block');
-    let matchCount = 0;
-
-    allBlocks.forEach(block => {
-      const contentEl = block.querySelector('.article-content');
-      const originalContent = lawData.articles.find(a => {
-        const num = formatArticleNum(a.num);
-        return block.dataset.articleNum === num;
+        if (originalContent.toLowerCase().includes(query)) {
+          block.style.display = '';
+          contentEl.innerHTML = highlightArticleText(originalContent, query);
+          matchCount++;
+        } else {
+          block.style.display = 'none';
+        }
       });
 
-      if (!query) {
-        block.style.display = '';
-        if (contentEl && originalContent) {
-          contentEl.innerHTML = escapeHtml(originalContent.content);
-        }
-        return;
-      }
-
-      if (originalContent && originalContent.content.toLowerCase().includes(query)) {
-        block.style.display = '';
-        contentEl.innerHTML = highlightArticleText(originalContent.content, query);
-        matchCount++;
+      if (query) {
+        articleSearchInfo.style.display = 'block';
+        articleSearchInfo.textContent = matchCount > 0
+          ? `找到 ${matchCount} 条匹配内容`
+          : '未找到匹配内容';
       } else {
-        block.style.display = 'none';
+        articleSearchInfo.style.display = 'none';
       }
+    }
+
+    articleSearch.addEventListener('input', () => {
+      clearTimeout(articleSearchTimeout);
+      articleSearchTimeout = setTimeout(filterArticles, 200);
     });
 
-    if (query) {
-      articleSearchInfo.style.display = 'block';
-      articleSearchInfo.textContent = matchCount > 0
-        ? `找到 ${matchCount} 条匹配法条`
-        : '未找到匹配法条';
-    } else {
-      articleSearchInfo.style.display = 'none';
-    }
+    if (searchQuery) filterArticles();
   }
 
-  articleSearch.addEventListener('input', () => {
-    clearTimeout(articleSearchTimeout);
-    articleSearchTimeout = setTimeout(filterArticles, 200);
-  });
-
-  // 初始时如果有搜索参数，执行搜索
-  if (searchQuery) {
-    filterArticles();
-  }
-
-  // ── 锚点定位：滚动到指定法条并高亮 ──
-  function scrollToAnchor() {
-    const hash = window.location.hash;
-    if (!hash) return;
-
-    const targetBlock = document.querySelector(hash);
-    if (targetBlock) {
-      // 短暂延迟确保 DOM 渲染完成
-      setTimeout(() => {
-        targetBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        targetBlock.style.background = 'var(--color-primary-50)';
-        setTimeout(() => {
-          targetBlock.style.background = '';
-        }, 3000);
-      }, 100);
-    }
-  }
-
-  // 监听 hash 变化
-  window.addEventListener('hashchange', scrollToAnchor);
-  scrollToAnchor();
+  loadDetail();
 });
 </script>
 {% endblock %}

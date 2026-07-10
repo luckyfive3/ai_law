@@ -59,7 +59,6 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script src="/static/js/laws_data.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const searchInput = document.getElementById('knowledgeSearch');
@@ -71,28 +70,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let currentCategory = 'all';
   let searchTimeout = null;
-
-  // 全量法律数据（含法条内容），带缓存
-  const fullLawsData = window.LAWS_DATA || [];
-
-  // 法律摘要列表（用于浏览模式）
-  const lawSummaries = fullLawsData.map(law => ({
-    id: law.id,
-    name: law.name,
-    category: law.category,
-    year: law.year,
-    summary: law.summary,
-    articleCount: law.articleCount,
-  }));
-
-  function getCategoryName(category) {
-    const names = {
-      'constitution': '宪法', 'civil': '民法', 'criminal': '刑法',
-      'labor': '劳动法', 'marriage': '婚姻家庭', 'traffic': '交通法',
-      'consumer': '消费者权益', 'housing': '房产法', 'other': '其他',
-    };
-    return names[category] || category;
-  }
+  let allDocuments = [];    // 从 RAGFlow 获取的全部文档
+  let isLoading = true;
 
   // ── 高亮关键词 ──
   function highlightText(text, query) {
@@ -102,177 +81,124 @@ document.addEventListener('DOMContentLoaded', () => {
     return escapeHtml(text).replace(regex, '<mark class="highlight">$1</mark>');
   }
 
-  // ── 截取关键词附近的文本片段 ──
-  function getSnippet(content, query, maxLen) {
-    maxLen = maxLen || 120;
-    if (!query) return content.length > maxLen ? content.slice(0, maxLen) + '…' : content;
-
-    const lowerContent = content.toLowerCase();
-    const lowerQuery = query.toLowerCase();
-    const idx = lowerContent.indexOf(lowerQuery);
-
-    if (idx === -1) return content.length > maxLen ? content.slice(0, maxLen) + '…' : content;
-
-    const half = Math.floor((maxLen - query.length) / 2);
-    let start = Math.max(0, idx - half);
-    let end = Math.min(content.length, idx + query.length + half);
-
-    // 调整到完整字符边界
-    if (start > 0) start = Math.max(0, content.lastIndexOf('，', start) + 1);
-    if (start === 0) start = Math.max(0, content.lastIndexOf('。', idx - half) + 1);
-    if (end < content.length) {
-      const nextPeriod = content.indexOf('。', end);
-      if (nextPeriod !== -1 && nextPeriod - end < 20) end = nextPeriod + 1;
+  // ── 从后端 API 加载 RAGFlow 文档列表 ──
+  async function loadDocuments() {
+    try {
+      const resp = await Api.get('knowledge/documents');
+      allDocuments = (resp.data || []).filter(d => d.status === '1');
+      console.log(`从 RAGFlow 加载了 ${allDocuments.length} 个文档`);
+    } catch (e) {
+      console.error('加载文档列表失败:', e);
+      allDocuments = [];
     }
-
-    let snippet = content.slice(start, end);
-    if (start > 0) snippet = '…' + snippet;
-    if (end < content.length) snippet = snippet + '…';
-
-    return snippet;
+    isLoading = false;
+    filterAndRender();
   }
 
   // ── 浏览模式：显示法律列表 ──
-  function renderBrowseMode(lawsData) {
+  function renderBrowseMode(docs) {
     statsEl.style.display = 'none';
     listEl.innerHTML = '';
 
-    if (lawsData.length === 0) {
+    if (docs.length === 0) {
       emptyEl.style.display = 'flex';
       return;
     }
     emptyEl.style.display = 'none';
 
-    lawsData.forEach(law => {
+    docs.forEach(doc => {
       const item = document.createElement('div');
       item.className = 'law-list-item';
       item.innerHTML = `
-        <div class="name">${escapeHtml(law.name)}</div>
-        <div class="info">${escapeHtml(law.year)} · ${escapeHtml(law.summary)} · 共${law.articleCount}条</div>
+        <div class="name">${escapeHtml(doc.name)}</div>
+        <div class="info">${escapeHtml(doc.year || '日期未知')} · ${doc.chunk_count} 个知识块 · ${doc.token_count} tokens</div>
       `;
       item.addEventListener('click', () => {
-        window.location.href = `/knowledge/${law.id}`;
+        window.location.href = `/knowledge/${doc.id}`;
       });
       listEl.appendChild(item);
     });
   }
 
-  // ── 搜索模式：深度检索法条内容 ──
-  function renderSearchMode(query, category) {
-    listEl.innerHTML = '';
+  // ── 搜索模式：调用后端 RAGFlow 检索 ──
+  async function renderSearchMode(query, category) {
+    listEl.innerHTML = '<div style="text-align:center;padding:var(--space-8);"><div class="spinner"></div></div>';
     emptyEl.style.display = 'none';
     statsEl.style.display = 'block';
 
-    const results = []; // { lawId, lawName, lawYear, matches: [{num, content}] }
+    try {
+      const resp = await Api.get(`knowledge/search?keyword=${encodeURIComponent(query)}&page=1&page_size=20`);
+      const data = resp.data || {};
+      const items = data.items || [];
 
-    for (const law of fullLawsData) {
-      if (category !== 'all' && law.category !== category) continue;
+      listEl.innerHTML = '';
 
-      const lawMatches = [];
-      const nameMatch = law.name.toLowerCase().includes(query);
+      if (items.length === 0) {
+        emptyEl.style.display = 'flex';
+        statsEl.textContent = `未找到与"${escapeHtml(query)}"相关的法条`;
+        return;
+      }
 
-      // 搜索法条内容
-      for (const article of (law.articles || [])) {
-        if (article.content && article.content.toLowerCase().includes(query)) {
-          lawMatches.push({ num: article.num, content: article.content });
+      statsEl.textContent = `搜索"${escapeHtml(query)}"，找到 ${data.count || items.length} 条结果`;
+
+      // 按法律名称分组
+      const grouped = {};
+      items.forEach(item => {
+        const lawName = item.name || '未知法律';
+        if (!grouped[lawName]) {
+          grouped[lawName] = { name: lawName, source: item.source || '', matches: [] };
         }
-      }
-
-      if (nameMatch || lawMatches.length > 0) {
-        results.push({
-          lawId: law.id,
-          lawName: law.name,
-          lawYear: law.year,
-          lawCategory: law.category,
-          nameMatch: nameMatch,
-          matches: lawMatches,
-          totalArticles: law.articleCount,
-        });
-      }
-    }
-
-    if (results.length === 0) {
-      emptyEl.style.display = 'flex';
-      statsEl.textContent = `未找到与"${escapeHtml(query)}"相关的法条`;
-      return;
-    }
-
-    const totalMatches = results.reduce((sum, r) => sum + r.matches.length, 0);
-    statsEl.textContent = `搜索"${escapeHtml(query)}"，找到 ${results.length} 部法律、${totalMatches} 条匹配法条`;
-
-    results.forEach(result => {
-      const group = document.createElement('div');
-      group.className = 'search-result-group';
-
-      // 组头：法律名称 + 匹配数
-      const header = document.createElement('div');
-      header.className = 'search-result-group-header';
-      header.innerHTML = `
-        <span class="law-name">${highlightText(result.lawName, query)}</span>
-        <span class="match-count">${result.matches.length} 条匹配</span>
-      `;
-      header.addEventListener('click', () => {
-        window.location.href = `/knowledge/${result.lawId}`;
+        grouped[lawName].matches.push(item);
       });
-      group.appendChild(header);
 
-      // 如果名称匹配但无法条匹配，显示摘要
-      if (result.nameMatch && result.matches.length === 0) {
-        const summaryItem = document.createElement('div');
-        summaryItem.className = 'search-result-item';
-        summaryItem.innerHTML = `<div class="article-snippet">${escapeHtml(result.lawYear)} · 共${result.totalArticles}条</div>`;
-        summaryItem.addEventListener('click', () => {
-          window.location.href = `/knowledge/${result.lawId}`;
-        });
-        group.appendChild(summaryItem);
-      }
+      Object.values(grouped).forEach(result => {
+        const group = document.createElement('div');
+        group.className = 'search-result-group';
 
-      // 匹配的法条列表（最多显示10条）
-      const showMatches = result.matches.slice(0, 10);
-      showMatches.forEach(match => {
-        const item = document.createElement('div');
-        item.className = 'search-result-item';
-        const snippet = getSnippet(match.content, query, 150);
-        item.innerHTML = `
-          <div class="article-num">第${escapeHtml(match.num)}条</div>
-          <div class="article-snippet">${highlightText(snippet, query)}</div>
+        const header = document.createElement('div');
+        header.className = 'search-result-group-header';
+        header.innerHTML = `
+          <span class="law-name">${highlightText(result.name, query)}</span>
+          <span class="match-count">${result.matches.length} 条匹配</span>
         `;
-        item.addEventListener('click', () => {
-          window.location.href = `/knowledge/${result.lawId}#article-${match.num}`;
+        group.appendChild(header);
+
+        result.matches.forEach(match => {
+          const item = document.createElement('div');
+          item.className = 'search-result-item';
+          const content = match.content || '';
+          const snippet = content.length > 200 ? content.slice(0, 200) + '…' : content;
+          const articleNum = match.article_num ? `第${match.article_num}条` : '';
+          item.innerHTML = `
+            ${articleNum ? `<div class="article-num">${escapeHtml(articleNum)}</div>` : ''}
+            <div class="article-snippet">${highlightText(snippet, query)}</div>
+          `;
+          group.appendChild(item);
         });
-        group.appendChild(item);
+
+        listEl.appendChild(group);
       });
 
-      // 如果匹配超过10条，显示"查看更多"
-      if (result.matches.length > 10) {
-        const moreItem = document.createElement('div');
-        moreItem.className = 'search-result-item';
-        moreItem.innerHTML = `<div class="article-snippet" style="color:var(--color-primary-600);">查看全部 ${result.matches.length} 条匹配结果 →</div>`;
-        moreItem.addEventListener('click', () => {
-          window.location.href = `/knowledge/${result.lawId}`;
-        });
-        group.appendChild(moreItem);
-      }
-
-      listEl.appendChild(group);
-    });
+    } catch (e) {
+      listEl.innerHTML = '';
+      emptyEl.style.display = 'flex';
+      statsEl.textContent = '搜索失败，请稍后重试';
+    }
   }
 
   // ── 主过滤/渲染入口 ──
-  function filterAndRender() {
+  async function filterAndRender() {
     const query = searchInput.value.trim().toLowerCase();
-
-    // 控制清除按钮显示
     searchClear.style.display = query ? 'block' : 'none';
 
+    if (isLoading) return;
+
     if (query) {
-      // 搜索模式：深度检索
-      renderSearchMode(query, currentCategory);
+      await renderSearchMode(query, currentCategory);
     } else {
-      // 浏览模式
-      let filtered = lawSummaries;
+      let filtered = allDocuments;
       if (currentCategory !== 'all') {
-        filtered = filtered.filter(l => l.category === currentCategory);
+        filtered = filtered.filter(d => d.category === currentCategory);
       }
       renderBrowseMode(filtered);
     }
@@ -284,7 +210,6 @@ document.addEventListener('DOMContentLoaded', () => {
     searchTimeout = setTimeout(filterAndRender, 300);
   });
 
-  // 清除搜索
   searchClear.addEventListener('click', () => {
     searchInput.value = '';
     searchClear.style.display = 'none';
@@ -292,18 +217,15 @@ document.addEventListener('DOMContentLoaded', () => {
     searchInput.focus();
   });
 
-  // 分类切换
   tabs.addEventListener('click', (e) => {
     const tab = e.target.closest('.knowledge-tab');
     if (!tab) return;
-
     tabs.querySelectorAll('.knowledge-tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
     currentCategory = tab.dataset.category;
     filterAndRender();
   });
 
-  // 搜索框快捷键：Esc 清除
   searchInput.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       searchInput.value = '';
@@ -312,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // 初始加载
-  renderBrowseMode(lawSummaries);
+  loadDocuments();
 });
 </script>
 {% endblock %}

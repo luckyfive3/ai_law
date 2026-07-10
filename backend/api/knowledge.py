@@ -24,6 +24,35 @@ def get_knowledge_service(request: Request):
     return request.app.state.services["knowledge_service"]
 
 
+# ==================== 获取 RAGFlow 文档列表 ====================
+
+@router.get("/documents", summary="获取 RAGFlow 文档列表")
+async def get_ragflow_documents(
+    request: Request,
+    knowledge_service=Depends(get_knowledge_service),
+):
+    """
+    从 RAGFlow 知识库获取全部文档列表
+
+    不需要登录即可访问。
+
+    Returns:
+        文档列表，每项包含 id, name, category, year, chunks, tokens
+    """
+    try:
+        documents = await knowledge_service.get_ragflow_documents()
+
+        logger.info(f"获取 RAGFlow 文档列表成功，共 {len(documents)} 个文档")
+        return success_response(documents)
+
+    except Exception as e:
+        logger.error(f"获取 RAGFlow 文档列表异常: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=error_response(errcode.CodeInternalError),
+        )
+
+
 # ==================== 获取法律分类 ====================
 
 @router.get("/categories", summary="获取法律分类列表")
@@ -107,15 +136,13 @@ async def get_law_detail(
     knowledge_service=Depends(get_knowledge_service),
 ):
     """
-    获取指定法条的详细信息
-
-    不需要登录即可访问。
+    获取指定法条（文档）的详细信息，包含全部 chunk 内容
 
     Args:
-        law_id: 法条 ID
+        law_id: 法条/文档 ID（RAGFlow document_id）
 
     Returns:
-        法条详情，包含 id、name 和 articles 列表
+        法条详情，包含 id、name 和 articles（chunk）列表
     """
     try:
         detail = await knowledge_service.get_law_detail(law_id)
