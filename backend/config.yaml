@@ -29,7 +29,7 @@ llm:
   max_retries: 3
 
 ragflow:
-  base_url: "http://ragflow:9380"
+  base_url: "http://123.57.85.126"
   top_k: 5
   similarity_threshold: 0.5
   timeout: 10s

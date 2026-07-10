@@ -16,7 +16,8 @@ langchain==0.3.13
 langchain-community==0.3.13
 langchain-openai==0.2.14
 
-# RAGFlow HTTP 客户端
+# RAGFlow 官方 SDK
+ragflow-sdk>=0.22.0
 httpx==0.28.1
 
 # JWT 鉴权

@@ -1,11 +1,13 @@
 """
-AI法律助手 v1.0 — RAGFlow HTTP API 客户端
-通过 HTTP 调用 RAGFlow 检索 API 获取相关法条
+AI法律助手 v1.0 — RAGFlow 客户端
+使用 RAGFlow 官方 Python SDK 进行检索和文档管理
 """
 import logging
+import asyncio
 from typing import List, Optional
 
 import httpx
+from ragflow_sdk import RAGFlow
 from config import Settings
 
 logger = logging.getLogger(__name__)
@@ -13,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class RAGFlowClient:
     """
-    RAGFlow HTTP API 客户端
+    RAGFlow 客户端
     负责与 RAGFlow 检索服务通信，获取法律条文检索结果
     """
 
@@ -31,6 +33,22 @@ class RAGFlowClient:
         self.similarity_threshold = settings.ragflow_similarity_threshold
         self.timeout = settings.ragflow_timeout
 
+        # 初始化 RAGFlow SDK 实例
+        self._rag: Optional[RAGFlow] = None
+        if self.api_key and self.base_url:
+            try:
+                self._rag = RAGFlow(
+                    api_key=self.api_key,
+                    base_url=self.base_url,
+                )
+                logger.info(f"RAGFlow SDK 初始化成功: {self.base_url}")
+            except Exception as e:
+                logger.warning(f"RAGFlow SDK 初始化失败: {e}")
+
+    def _get_rag(self) -> Optional[RAGFlow]:
+        """获取 SDK 实例"""
+        return self._rag
+
     # ═══════════════════════════════════════
     # 检索
     # ═══════════════════════════════════════
@@ -42,7 +60,7 @@ class RAGFlowClient:
         top_k: Optional[int] = None,
     ) -> List[dict]:
         """
-        调用 RAGFlow 检索 API
+        调用 RAGFlow SDK 检索
 
         Args:
             query: 检索查询文本
@@ -61,112 +79,51 @@ class RAGFlowClient:
         """
         ds_id = dataset_id or self.default_dataset_id
         k = top_k or self.default_top_k
-        url = f"{self.base_url}/api/v1/retrieval"
+        rag = self._get_rag()
 
-        headers = {
-            "Content-Type": "application/json",
-        }
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
-
-        payload = {
-            "question": query,
-            "dataset_id": ds_id,
-            "top_k": k,
-        }
+        if not rag:
+            logger.warning("RAGFlow SDK 未初始化，跳过检索")
+            return []
 
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.post(url, json=payload, headers=headers)
+            # RAGFlow SDK 的 retrieve 是同步方法，在线程池中执行
+            results = await asyncio.to_thread(
+                rag.retrieve,
+                question=query,
+                dataset_ids=[ds_id],
+                document_ids=[],
+            )
 
-                if response.status_code != 200:
-                    logger.warning(
-                        f"RAGFlow 检索返回非200状态码: {response.status_code}, "
-                        f"body: {response.text[:200]}"
-                    )
-                    return []
+            # 标准化结果格式
+            parsed = []
+            for chunk in results:
+                similarity = float(getattr(chunk, "similarity", 0))
 
-                data = response.json()
+                if similarity < self.similarity_threshold:
+                    continue
 
-                # 解析 RAGFlow 返回的检索结果
-                results = self._parse_search_results(data)
+                parsed.append({
+                    "law_name": getattr(chunk, "doc_name", "") or "未知法律",
+                    "article_num": "",
+                    "law_text": getattr(chunk, "content", "") or "",
+                    "source": getattr(chunk, "doc_name", "") or "",
+                    "chunk_id": str(getattr(chunk, "id", "")),
+                    "relevance": similarity,
+                })
 
-                logger.info(
-                    f"RAGFlow 检索成功: query='{query[:50]}...', "
-                    f"返回 {len(results)} 条结果"
-                )
-                return results
+            # 按相关度降序排序，取 top_k
+            parsed.sort(key=lambda x: x["relevance"], reverse=True)
+            parsed = parsed[:k]
 
-        except httpx.TimeoutException:
-            logger.warning(f"RAGFlow 检索超时 ({self.timeout}s): query='{query[:50]}...'")
-            return []
-        except httpx.ConnectError:
-            logger.warning(f"RAGFlow 连接失败: {self.base_url}")
-            return []
+            logger.info(
+                f"RAGFlow 检索成功: query='{query[:50]}...', "
+                f"返回 {len(parsed)} 条结果"
+            )
+            return parsed
+
         except Exception as e:
             logger.error(f"RAGFlow 检索异常: {type(e).__name__}: {e}")
             return []
-
-    def _parse_search_results(self, data: dict) -> List[dict]:
-        """
-        解析 RAGFlow 返回的检索结果
-
-        Args:
-            data: RAGFlow API 返回的 JSON 数据
-
-        Returns:
-            标准化后的检索结果列表
-        """
-        results = []
-
-        # RAGFlow 返回格式: {"data": {"chunks": [...]}}
-        # 同时兼容 {"data": [...]} 格式
-        records = []
-
-        if isinstance(data, dict):
-            inner = data.get("data", data)
-            if isinstance(inner, dict):
-                records = inner.get("chunks", [])
-            elif isinstance(inner, list):
-                records = inner
-
-        if not isinstance(records, list):
-            return results
-
-        for chunk in records:
-            if not isinstance(chunk, dict):
-                continue
-
-            # 提取关键元数据
-            law_name = (
-                chunk.get("law_name")
-                or chunk.get("doc_name")
-                or chunk.get("title")
-                or "未知法律"
-            )
-            article_num = chunk.get("article_num") or chunk.get("article") or ""
-            law_text = chunk.get("content") or chunk.get("law_text") or ""
-            source = chunk.get("source") or chunk.get("doc_name") or ""
-            chunk_id = chunk.get("chunk_id") or chunk.get("id") or ""
-            relevance = float(chunk.get("similarity", chunk.get("relevance", 0)))
-
-            # 过滤相似度低于阈值的结果
-            if relevance < self.similarity_threshold:
-                continue
-
-            results.append({
-                "law_name": law_name,
-                "article_num": article_num,
-                "law_text": law_text,
-                "source": source,
-                "chunk_id": str(chunk_id),
-                "relevance": relevance,
-            })
-
-        # 按相关度降序排序
-        results.sort(key=lambda x: x["relevance"], reverse=True)
-
-        return results
 
     # ═══════════════════════════════════════
     # 数据集管理
@@ -179,23 +136,13 @@ class RAGFlowClient:
         Returns:
             数据集列表
         """
-        url = f"{self.base_url}/api/v1/datasets"
-        headers = {}
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
+        rag = self._get_rag()
+        if not rag:
+            return []
 
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.get(url, headers=headers)
-
-                if response.status_code != 200:
-                    logger.warning(f"获取数据集失败: {response.status_code}")
-                    return []
-
-                data = response.json()
-                datasets = data.get("data", []) if isinstance(data, dict) else []
-                return datasets if isinstance(datasets, list) else []
-
+            datasets = await asyncio.to_thread(rag.list_datasets)
+            return [{"id": ds.id, "name": ds.name} for ds in datasets]
         except Exception as e:
             logger.error(f"获取数据集异常: {e}")
             return []
