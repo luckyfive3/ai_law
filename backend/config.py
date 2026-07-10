@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     llm_max_retries: int = 3
 
     # ── RAGFlow ──
-    ragflow_base_url: str = "http://ragflow:9380"
+    ragflow_base_url: str = "http://123.57.85.126"
     ragflow_api_key: str = ""
     ragflow_dataset_id: str = ""
     ragflow_top_k: int = 5
