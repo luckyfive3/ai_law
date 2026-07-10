@@ -39,6 +39,8 @@ const Auth = {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
+    // 清除聊天会话记录，重新登录后开启新对话
+    sessionStorage.removeItem('last_chat_session_id');
     this._updateUI();
 
     // 如果当前在需要登录的页面，跳转到首页

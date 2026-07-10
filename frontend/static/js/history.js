@@ -7,6 +7,8 @@ const History = {
   pageSize: 20,
   hasMore: true,
   isLoading: false,
+  keyword: '',
+  _debounceTimer: null,
 
   init() {
     this._bindEvents();
@@ -30,7 +32,11 @@ const History = {
     this._showLoading(true);
 
     try {
-      const resp = await Api.get(`sessions?page=${this.page}&page_size=${this.pageSize}`);
+      let url = `sessions?page=${this.page}&page_size=${this.pageSize}`;
+      if (this.keyword) {
+        url += `&keyword=${encodeURIComponent(this.keyword)}`;
+      }
+      const resp = await Api.get(url);
       const data = resp.data;
 
       if (data && data.list) {
@@ -144,16 +150,46 @@ const History = {
     const empty = document.createElement('div');
     empty.id = 'historyEmpty';
     empty.className = 'empty-state';
-    empty.innerHTML = `
-      <div class="icon">📋</div>
-      <div class="title">暂无咨询记录</div>
-      <div class="desc">去咨询一个问题吧</div>
-      <a href="/chat" class="btn btn-primary">开始咨询</a>
-    `;
+    if (this.keyword) {
+      empty.innerHTML = `
+        <div class="icon">🔍</div>
+        <div class="title">未找到相关记录</div>
+        <div class="desc">没有包含"${escapeHtml(this.keyword)}"的会话</div>
+      `;
+    } else {
+      empty.innerHTML = `
+        <div class="icon">📋</div>
+        <div class="title">暂无咨询记录</div>
+        <div class="desc">去咨询一个问题吧</div>
+        <a href="/chat" class="btn btn-primary">开始咨询</a>
+      `;
+    }
     container.appendChild(empty);
   },
 
   _bindEvents() {
+    // 搜索输入（防抖 400ms）
+    const searchInput = document.getElementById('historySearch');
+    searchInput?.addEventListener('input', () => {
+      const val = searchInput.value.trim();
+      const clearBtn = document.getElementById('clearSearchBtn');
+      clearTimeout(this._debounceTimer);
+      this._debounceTimer = setTimeout(() => {
+        this.keyword = val;
+        if (clearBtn) clearBtn.style.display = val ? '' : 'none';
+        this._loadList(true);
+      }, 400);
+    });
+
+    // 清除搜索按钮
+    document.getElementById('clearSearchBtn')?.addEventListener('click', () => {
+      const input = document.getElementById('historySearch');
+      if (input) input.value = '';
+      this.keyword = '';
+      document.getElementById('clearSearchBtn').style.display = 'none';
+      this._loadList(true);
+    });
+
     // 下拉刷新
     let touchStartY = 0;
     document.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; });
@@ -227,16 +263,6 @@ const HistoryDetail = {
           `).join('');
         }
 
-        let disclaimerHTML = '';
-        if (msg.role === 'assistant') {
-          disclaimerHTML = `
-            <div class="disclaimer-bar">
-              <span class="icon">⚠️</span>
-              <span>以上内容仅供参考，不构成法律意见。如遇重大法律问题，强烈建议您咨询具有执业资格的律师以获取专业法律建议。</span>
-            </div>
-          `;
-        }
-
         el.innerHTML = `
           <div class="message-avatar" style="${avatarBg}">${avatar}</div>
           <div class="message-body">
@@ -244,7 +270,6 @@ const HistoryDetail = {
             <div class="message-time">${formatTime(msg.created_at)}</div>
             ${msg.role === 'assistant' ? '<div class="message-actions"><button class="copy-btn">复制全文</button></div>' : ''}
             ${lawCardsHTML}
-            ${disclaimerHTML}
           </div>
         `;
 

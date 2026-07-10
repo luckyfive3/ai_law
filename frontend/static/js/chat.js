@@ -6,11 +6,421 @@ const Chat = {
   currentSessionId: null,
   isStreaming: false,
   abortController: null,
+  // 会话缓存: { [sessionId]: { title, updatedAt, msgCount, html } }
+  conversationsCache: {},
+  // 侧边栏会话元信息列表
+  conversationMetas: [],
+  // sessionStorage key
+  STORAGE_KEY: 'last_chat_session_id',
 
   init(sessionId) {
     this.currentSessionId = sessionId || null;
+
+    // 没有 URL 参数但 sessionStorage 有记录且已登录 → 恢复上次会话
+    if (!this.currentSessionId && Auth.isLoggedIn()) {
+      const lastId = sessionStorage.getItem(this.STORAGE_KEY);
+      if (lastId) {
+        window.location.replace(`/chat?session_id=${lastId}`);
+        return;
+      }
+    }
+
     this._bindEvents();
     this._setupInputAutoResize();
+    this._loadConversationList();
+    this._bindMobileSidebar();
+
+    // 如果带有 session_id，加载该会话的消息
+    if (this.currentSessionId) {
+      this._persistSessionId(this.currentSessionId);
+      this._loadInitialSession(this.currentSessionId);
+    }
+  },
+
+  // ── 持久化当前 session_id 到 sessionStorage ──
+  _persistSessionId(id) {
+    if (id) {
+      sessionStorage.setItem(this.STORAGE_KEY, id);
+    } else {
+      sessionStorage.removeItem(this.STORAGE_KEY);
+    }
+  },
+
+  // ── 初次加载指定会话的消息 ──
+  async _loadInitialSession(sessionId) {
+    if (!Auth.isLoggedIn()) return;
+
+    const list = document.getElementById('messageList');
+    const welcome = document.getElementById('welcomeGuide');
+    if (welcome) welcome.style.display = 'none';
+
+    try {
+      const resp = await Api.get(`sessions/${sessionId}`);
+      const data = resp.data;
+      if (!data || !data.messages) return;
+
+      if (list) list.innerHTML = '';
+      data.messages.forEach(msg => {
+        this._renderHistoryMessage(msg);
+      });
+      this._saveCurrentToCache();
+      this._scrollToBottom();
+    } catch (e) {
+      // 会话可能已被删除，静默回退
+      console.warn('加载初始会话失败:', e.message);
+    }
+  },
+
+  // ── 加载侧边栏会话列表 ──
+  async _loadConversationList() {
+    const listEl = document.getElementById('conversationList');
+    if (!listEl) return;
+
+    if (!Auth.isLoggedIn()) {
+      listEl.innerHTML = `
+        <div class="sidebar-empty">
+          <div class="icon">🔒</div>
+          <div class="text">登录后可查看历史对话</div>
+        </div>`;
+      return;
+    }
+
+    listEl.innerHTML = '<div class="sidebar-loading"><div class="spinner"></div></div>';
+
+    try {
+      const resp = await Api.get('sessions?page=1&page_size=10');
+      const data = resp.data;
+      this.conversationMetas = data?.list || [];
+      this._renderConversationList();
+    } catch (e) {
+      listEl.innerHTML = `
+        <div class="sidebar-empty">
+          <div class="text">加载失败</div>
+        </div>`;
+    }
+  },
+
+  _renderConversationList() {
+    const listEl = document.getElementById('conversationList');
+    if (!listEl) return;
+
+    if (this.conversationMetas.length === 0) {
+      listEl.innerHTML = `
+        <div class="sidebar-empty">
+          <div class="icon">💬</div>
+          <div class="text">暂无历史对话</div>
+        </div>`;
+      return;
+    }
+
+    let html = '';
+    this.conversationMetas.forEach(session => {
+      const isActive = session.id === this.currentSessionId;
+      html += `
+        <div class="conversation-item ${isActive ? 'active' : ''}" data-session-id="${escapeHtml(session.id)}">
+          <div class="conversation-item-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+            </svg>
+          </div>
+          <div class="conversation-item-body">
+            <div class="conversation-item-title">${escapeHtml(session.title || '法律咨询')}</div>
+            <div class="conversation-item-meta">${escapeHtml(formatTime(session.updated_at))}</div>
+          </div>
+          <button class="conversation-item-delete" data-delete-id="${escapeHtml(session.id)}" title="删除">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+            </svg>
+          </button>
+        </div>`;
+    });
+
+    listEl.innerHTML = html;
+
+    // 绑定点击事件
+    listEl.querySelectorAll('.conversation-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        // 不拦截删除按钮的点击
+        if (e.target.closest('.conversation-item-delete')) return;
+        const sid = item.dataset.sessionId;
+        if (sid && sid !== this.currentSessionId) {
+          this.switchConversation(sid);
+        }
+      });
+    });
+
+    // 绑定删除按钮
+    listEl.querySelectorAll('.conversation-item-delete').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this._deleteConversation(btn.dataset.deleteId);
+      });
+    });
+  },
+
+  // ── 切换会话 ──
+  async switchConversation(sessionId) {
+    if (this.isStreaming) {
+      Toast.warning('请等待当前回复完成');
+      return;
+    }
+
+    if (sessionId === this.currentSessionId) return;
+
+    // 保存当前会话的 HTML 到缓存
+    this._saveCurrentToCache();
+
+    // 切换到目标会话
+    this.currentSessionId = sessionId;
+    this._persistSessionId(sessionId);
+    window.history.replaceState(null, '', `/chat?session_id=${sessionId}`);
+
+    // 更新侧边栏高亮
+    this._updateSidebarActive();
+
+    const list = document.getElementById('messageList');
+    const welcome = document.getElementById('welcomeGuide');
+
+    // 检查缓存
+    const cached = this.conversationsCache[sessionId];
+    if (cached && cached.html) {
+      if (list) list.innerHTML = cached.html;
+      this._scrollToBottom();
+      // 重新绑定消息中的事件
+      this._rebindMessageActions();
+      // 关闭移动端侧边栏
+      this._closeSidebar();
+      return;
+    }
+
+    // 从 API 加载
+    if (!Auth.isLoggedIn()) return;
+
+    if (list) {
+      list.innerHTML = '<div class="sidebar-loading" style="padding:var(--space-16);"><div class="spinner"></div></div>';
+    }
+    if (welcome) welcome.style.display = 'none';
+
+    try {
+      const resp = await Api.get(`sessions/${sessionId}`);
+      const data = resp.data;
+      if (!data || !data.messages) {
+        if (list) list.innerHTML = '';
+        this._showWelcomeGuide();
+        this._closeSidebar();
+        return;
+      }
+
+      // 渲染消息
+      if (list) list.innerHTML = '';
+      data.messages.forEach(msg => {
+        this._renderHistoryMessage(msg);
+      });
+
+      // 缓存
+      this._saveCurrentToCache();
+    } catch (e) {
+      Toast.error('加载会话失败: ' + e.message);
+      if (list) list.innerHTML = '';
+      this._showWelcomeGuide();
+    }
+
+    this._scrollToBottom();
+    this._closeSidebar();
+  },
+
+  // ── 渲染历史消息 ──
+  _renderHistoryMessage(msg) {
+    const list = document.getElementById('messageList');
+    if (!list) return;
+
+    const el = document.createElement('div');
+    el.className = `message message--${msg.role}`;
+
+    const avatar = msg.role === 'user' ? '我' : 'AI';
+    const avatarBg = msg.role === 'user'
+      ? 'background:var(--color-primary-100);color:var(--color-primary-700);'
+      : 'background:var(--color-gray-100);color:var(--color-primary-600);';
+
+    let lawCardsHTML = '';
+    if (msg.law_refs && msg.law_refs.length > 0) {
+      lawCardsHTML = msg.law_refs.map(law => `
+        <div class="law-card">
+          <div class="law-card-header">
+            <span>《${escapeHtml(law.name)}》${escapeHtml(law.article || '')}</span>
+            <span class="arrow">▼</span>
+          </div>
+          <div class="law-card-body">
+            <p>${escapeHtml(law.text || '')}</p>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    el.innerHTML = `
+      <div class="message-avatar" style="${avatarBg}">${avatar}</div>
+      <div class="message-body">
+        <div class="message-bubble markdown-body">${simpleMarkdown(msg.content)}</div>
+        <div class="message-time">${formatTime(msg.created_at)}</div>
+        ${msg.role === 'assistant' ? '<div class="message-actions" style="display:flex;"><button class="copy-btn">复制全文</button></div>' : ''}
+        ${lawCardsHTML}
+      </div>
+    `;
+
+    this._bindMessageElementEvents(el);
+    list.appendChild(el);
+  },
+
+  // ── 绑定单条消息的事件 ──
+  _bindMessageElementEvents(el) {
+    const copyBtn = el.querySelector('.copy-btn');
+    copyBtn?.addEventListener('click', () => {
+      const bubble = el.querySelector('.message-bubble');
+      if (bubble) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = bubble.innerHTML;
+        const text = tempDiv.textContent || tempDiv.innerText || '';
+        navigator.clipboard.writeText(text).then(() => {
+          Toast.success('已复制');
+        }).catch(() => Toast.error('复制失败'));
+      }
+    });
+
+    el.querySelectorAll('.law-card-header').forEach(header => {
+      header.addEventListener('click', () => {
+        header.parentElement.classList.toggle('open');
+      });
+    });
+  },
+
+  // ── 重新绑定消息列表中的交互事件 ──
+  _rebindMessageActions() {
+    document.querySelectorAll('.message--assistant').forEach(el => {
+      this._bindMessageElementEvents(el);
+    });
+  },
+
+  // ── 保存当前会话 HTML 到缓存 ──
+  _saveCurrentToCache() {
+    if (!this.currentSessionId) return;
+    const list = document.getElementById('messageList');
+    if (!list) return;
+
+    const meta = this.conversationMetas.find(m => m.id === this.currentSessionId);
+    this.conversationsCache[this.currentSessionId] = {
+      title: meta?.title || '法律咨询',
+      updatedAt: meta?.updated_at || new Date().toISOString(),
+      html: list.innerHTML,
+    };
+  },
+
+  // ── 刷新侧边栏并更新缓存信息 ──
+  async _refreshConversationMeta() {
+    if (!this.currentSessionId || !Auth.isLoggedIn()) return;
+    try {
+      const resp = await Api.get(`sessions/${this.currentSessionId}`);
+      const data = resp.data;
+      if (data) {
+        // 更新或添加到 metas 列表
+        const idx = this.conversationMetas.findIndex(m => m.id === this.currentSessionId);
+        const meta = {
+          id: this.currentSessionId,
+          title: data.title || '法律咨询',
+          updated_at: data.updated_at || new Date().toISOString(),
+          msg_count: data.msg_count || 0,
+        };
+        if (idx >= 0) {
+          this.conversationMetas[idx] = meta;
+        } else {
+          this.conversationMetas.unshift(meta);
+        }
+        // 重新排序：最近更新的在前
+        this.conversationMetas.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+        this._renderConversationList();
+        // 同时更新缓存
+        this._saveCurrentToCache();
+      }
+    } catch (e) {
+      // 静默失败
+    }
+  },
+
+  // ── 更新侧边栏高亮 ──
+  _updateSidebarActive() {
+    document.querySelectorAll('.conversation-item').forEach(item => {
+      item.classList.toggle('active', item.dataset.sessionId === this.currentSessionId);
+    });
+  },
+
+  // ── 删除侧边栏会话 ──
+  async _deleteConversation(sessionId) {
+    showModal({
+      title: '删除会话',
+      message: '确定要删除这个会话吗？删除后无法恢复。',
+      confirmText: '删除',
+      danger: true,
+      onConfirm: async () => {
+        try {
+          await Api.delete(`sessions/${sessionId}`);
+          // 从缓存中移除
+          delete this.conversationsCache[sessionId];
+          // 从列表中移除
+          this.conversationMetas = this.conversationMetas.filter(m => m.id !== sessionId);
+
+          // 如果删除的是当前会话
+          if (sessionId === this.currentSessionId) {
+            this.currentSessionId = null;
+            this._persistSessionId(null);
+            const list = document.getElementById('messageList');
+            if (list) list.innerHTML = '';
+            this._showWelcomeGuide();
+            window.history.replaceState(null, '', '/chat');
+          }
+
+          this._renderConversationList();
+          Toast.success('已删除');
+        } catch (e) {
+          Toast.error('删除失败: ' + e.message);
+        }
+      },
+    });
+  },
+
+  // ── 移动端侧边栏控制 ──
+  _bindMobileSidebar() {
+    const menuBtn = document.getElementById('menuBtn');
+    const sidebar = document.getElementById('chatSidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+
+    const open = () => {
+      sidebar?.classList.add('open');
+      overlay?.classList.add('visible');
+      document.body.style.overflow = 'hidden';
+    };
+
+    const close = () => {
+      sidebar?.classList.remove('open');
+      overlay?.classList.remove('visible');
+      document.body.style.overflow = '';
+    };
+
+    menuBtn?.addEventListener('click', open);
+    overlay?.addEventListener('click', close);
+
+    // 点击侧边栏中的会话项后关闭
+    sidebar?.addEventListener('click', (e) => {
+      if (e.target.closest('.conversation-item') && !e.target.closest('.conversation-item-delete')) {
+        close();
+      }
+    });
+  },
+
+  _closeSidebar() {
+    const sidebar = document.getElementById('chatSidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    sidebar?.classList.remove('open');
+    overlay?.classList.remove('visible');
+    document.body.style.overflow = '';
   },
 
   // ── 发送消息 ──
@@ -41,8 +451,11 @@ const Chat = {
           category: category || 'general',
         });
         this.currentSessionId = resp.data.id;
+        this._persistSessionId(this.currentSessionId);
         // 更新 URL
         window.history.replaceState(null, '', `/chat?session_id=${this.currentSessionId}`);
+        // 刷新侧边栏列表
+        await this._refreshConversationMeta();
       } catch (e) {
         Toast.error('创建会话失败: ' + e.message);
         this.isStreaming = false;
@@ -91,6 +504,7 @@ const Chat = {
       let lawRefs = [];
       let messageEl = null;
       let contentEl = null;
+      let streamError = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -101,17 +515,6 @@ const Chat = {
         buffer = lines.pop() || '';
 
         for (const line of lines) {
-          if (line.startsWith('event:')) {
-            // 处理事件类型
-            const eventType = line.substring(6).trim();
-            if (eventType === 'thinking' && thinkingEl) {
-              // 更新思考状态
-              const statusEl = thinkingEl.querySelector('.thinking-text');
-              if (statusEl) statusEl.textContent = '正在检索相关法条…';
-            }
-            continue;
-          }
-
           if (!line.startsWith('data:')) continue;
           const jsonStr = line.substring(5).trim();
           if (!jsonStr) continue;
@@ -119,16 +522,52 @@ const Chat = {
           try {
             const data = JSON.parse(jsonStr);
 
+            if (data.status === 'error') {
+              if (thinkingEl) thinkingEl.remove();
+              Toast.error(data.error || '服务异常');
+              streamError = true;
+              break;
+            }
+
             if (data.status === 'searching') {
               if (thinkingEl) {
                 thinkingEl.querySelector('.thinking-text').textContent = '正在检索相关法条…';
               }
+            } else if (data.done === true) {
+              // 流结束，统一在此完成消息最终化
+              lawRefs = data.laws || [];
+
+              if (messageEl && contentEl) {
+                contentEl.innerHTML = simpleMarkdown(fullContent);
+
+                if (lawRefs.length > 0) {
+                  this._appendLawCards(messageEl, lawRefs);
+                }
+
+                const timeEl = messageEl.querySelector('.message-time');
+                if (timeEl) timeEl.textContent = formatTime(new Date().toISOString());
+
+                const actionsEl = messageEl.querySelector('.message-actions');
+                if (actionsEl) actionsEl.style.display = 'flex';
+              }
+
+              if (!messageEl && thinkingEl) {
+                // 空响应：移除 thinking，显示兜底消息
+                thinkingEl.remove();
+                const fallbackEl = this._createAssistantMessageContainer();
+                const bubble = fallbackEl.querySelector('.message-bubble');
+                if (bubble) bubble.innerHTML = simpleMarkdown(fullContent || '抱歉，未能生成回复。');
+                const timeEl = fallbackEl.querySelector('.message-time');
+                if (timeEl) timeEl.textContent = formatTime(new Date().toISOString());
+                const actionsEl = fallbackEl.querySelector('.message-actions');
+                if (actionsEl) actionsEl.style.display = 'flex';
+              }
+
+              this._refreshConversationMeta();
             } else if (data.content !== undefined) {
               // 首字到达时替换 thinking 为正式消息
               if (!messageEl) {
-                if (thinkingEl) {
-                  thinkingEl.remove();
-                }
+                if (thinkingEl) thinkingEl.remove();
                 messageEl = this._createAssistantMessageContainer();
                 contentEl = messageEl.querySelector('.message-bubble');
               }
@@ -136,48 +575,19 @@ const Chat = {
               fullContent += data.content;
               contentEl.innerHTML = simpleMarkdown(fullContent) + '<span class="cursor-blink"></span>';
               this._scrollToBottom();
-            } else if (data.laws) {
-              lawRefs = data.laws;
-              // 法条到达后追加法条卡片
-              if (messageEl) {
-                this._appendLawCards(messageEl, lawRefs);
-              }
-            } else if (data.message_id !== undefined) {
-              // 流结束
-              if (messageEl && contentEl) {
-                // 去掉闪烁光标
-                contentEl.innerHTML = simpleMarkdown(fullContent);
-
-                // 追加风险提示
-                this._appendDisclaimer(messageEl);
-
-                // 追加法条卡片（如果还没加）
-                if (lawRefs.length > 0) {
-                  this._appendLawCards(messageEl, lawRefs);
-                }
-
-                // 设置时间
-                const timeEl = messageEl.querySelector('.message-time');
-                if (timeEl) timeEl.textContent = formatTime(new Date().toISOString());
-
-                // 显示操作按钮
-                const actionsEl = messageEl.querySelector('.message-actions');
-                if (actionsEl) actionsEl.style.display = 'flex';
-              }
             }
           } catch (e) {
             console.warn('SSE parse error:', e, jsonStr);
           }
         }
+
+        if (streamError) break;
       }
 
     } catch (err) {
       if (err.name === 'AbortError') {
-        // 用户主动停止，已生成的内容保留
         if (thinkingEl) thinkingEl.remove();
         const msgEl = document.querySelector('.message--assistant:last-of-type');
-
-        // 去掉闪烁光标
         const bubble = msgEl?.querySelector('.message-bubble');
         if (bubble) {
           bubble.innerHTML = bubble.innerHTML.replace(/<span class="cursor-blink"><\/span>/g, '');
@@ -207,15 +617,21 @@ const Chat = {
       Toast.warning('请等待当前回复完成');
       return;
     }
+
+    // 保存当前会话
+    this._saveCurrentToCache();
+
     this.currentSessionId = null;
+    this._persistSessionId(null);
     const list = document.getElementById('messageList');
     if (list) list.innerHTML = '';
 
-    // 显示欢迎引导
     this._showWelcomeGuide();
+    this._updateSidebarActive();
 
     window.history.replaceState(null, '', '/chat');
     document.getElementById('chatInput')?.focus();
+    this._closeSidebar();
   },
 
   // ── 内部辅助方法 ──
@@ -252,12 +668,13 @@ const Chat = {
     // 新建对话按钮
     document.getElementById('newChatBtn')?.addEventListener('click', () => this.startNewChat());
 
-    // 常见问题快捷提问卡片
-    document.querySelectorAll('.quick-question').forEach(card => {
-      card.addEventListener('click', () => {
-        const question = card.dataset.question;
+    // 快捷提问（支持动态生成的欢迎引导）
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('.quick-question');
+      if (btn) {
+        const question = btn.dataset.question;
         if (question) this.sendMessage(question);
-      });
+      }
     });
   },
 
@@ -359,12 +776,10 @@ const Chat = {
       </div>
     `;
 
-    // 绑定复制按钮
     const copyBtn = el.querySelector('.copy-btn');
     copyBtn?.addEventListener('click', () => {
       const bubble = el.querySelector('.message-bubble');
       if (bubble) {
-        // 去除 HTML 标记，获取纯文本
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = bubble.innerHTML;
         const text = tempDiv.textContent || tempDiv.innerText || '';
@@ -383,7 +798,6 @@ const Chat = {
     const body = messageEl.querySelector('.message-body');
     if (!body) return;
 
-    // 移除已有法条卡片
     body.querySelectorAll('.law-card').forEach(c => c.remove());
 
     laws.forEach(law => {
@@ -400,7 +814,6 @@ const Chat = {
         </div>
       `;
 
-      // 点击折叠/展开
       card.querySelector('.law-card-header').addEventListener('click', () => {
         card.classList.toggle('open');
       });
@@ -409,26 +822,14 @@ const Chat = {
     });
   },
 
-  _appendDisclaimer(messageEl) {
-    const body = messageEl.querySelector('.message-body');
-    if (!body) return;
-    // 移除已有风险提示
-    body.querySelectorAll('.disclaimer-bar').forEach(d => d.remove());
-
-    const bar = document.createElement('div');
-    bar.className = 'disclaimer-bar';
-    bar.innerHTML = `
-      <span class="icon">⚠️</span>
-      <span>以上内容仅供参考，不构成法律意见。如遇重大法律问题，强烈建议您咨询具有执业资格的律师以获取专业法律建议。</span>
-    `;
-    body.appendChild(bar);
-  },
-
   _showWelcomeGuide() {
     const list = document.getElementById('messageList');
     if (!list) return;
     const existing = document.getElementById('welcomeGuide');
-    if (existing) existing.style.display = '';
+    if (existing) {
+      existing.style.display = '';
+      return;
+    }
 
     const el = document.createElement('div');
     el.id = 'welcomeGuide';
@@ -449,19 +850,14 @@ const Chat = {
       </div>
     `;
     list.appendChild(el);
-
-    // 绑定快捷提问
-    el.querySelectorAll('.quick-question').forEach(card => {
-      card.addEventListener('click', () => {
-        const question = card.dataset.question;
-        if (question) this.sendMessage(question);
-      });
-    });
   },
 
   _scrollToBottom() {
     requestAnimationFrame(() => {
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      const msgList = document.getElementById('messageList');
+      if (msgList) {
+        msgList.scrollTop = msgList.scrollHeight;
+      }
     });
   },
 };

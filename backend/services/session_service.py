@@ -95,23 +95,46 @@ class SessionService:
         user_id: str,
         page: int = 1,
         page_size: int = 20,
+        keyword: str = "",
     ) -> Tuple[List[dict], int]:
         """
-        获取用户的会话列表（分页）
+        获取用户的会话列表（分页），支持关键词搜索
 
         Args:
             user_id: 用户ID（字符串）
             page: 页码（从1开始）
             page_size: 每页条数
+            keyword: 搜索关键词，匹配标题和消息内容
 
         Returns:
             (会话列表, 总数)
         """
-        # 查询条件：用户ID + 正常状态
         query = {
             "user_id": user_id,
             "status": 1,
         }
+
+        if keyword:
+            escaped_keyword = keyword.replace("\\", "\\\\").replace("\"", "\\\"")
+            title_match = {"title": {"$regex": escaped_keyword, "$options": "i"}}
+
+            message_sessions = set()
+            msg_cursor = self.db.messages.find(
+                {"content": {"$regex": escaped_keyword, "$options": "i"}, "status": 1},
+                {"session_id": 1},
+            )
+            async for msg in msg_cursor:
+                sid = msg.get("session_id")
+                if sid:
+                    message_sessions.add(sid)
+
+            if message_sessions:
+                query["$or"] = [
+                    title_match,
+                    {"_id": {"$in": [ObjectId(s) for s in message_sessions if len(s) == 24]}},
+                ]
+            else:
+                query.update(title_match)
 
         # 获取总数
         total = await self.db.sessions.count_documents(query)
