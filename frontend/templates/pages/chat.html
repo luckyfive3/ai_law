@@ -58,7 +58,7 @@
 {% block extra_scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  Chat.init({{ session_id or 'null' }});
+  Chat.init({{ session_id | tojson }});
 });
 </script>
 {% endblock %}

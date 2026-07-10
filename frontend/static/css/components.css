@@ -726,6 +726,24 @@
   font-size: var(--text-lg);
 }
 
+.search-box .search-clear {
+  position: absolute;
+  right: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--color-gray-400);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-box .search-clear:hover { color: var(--color-gray-600); }
+
 .law-list-item {
   padding: var(--space-4) var(--space-6);
   border-bottom: 1px solid var(--color-gray-100);
@@ -741,6 +759,73 @@
   background: #FEF08A;
   border-radius: 2px;
   padding: 0 2px;
+}
+
+/* ── 知识库搜索结果 ── */
+.search-result-group {
+  margin-bottom: var(--space-5);
+  background: #fff;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.search-result-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-gray-50);
+  border-bottom: 1px solid var(--color-gray-100);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.search-result-group-header:hover { background: var(--color-gray-100); }
+
+.search-result-group-header .law-name {
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--color-gray-800);
+}
+
+.search-result-group-header .match-count {
+  font-size: var(--text-xs);
+  color: var(--color-primary-600);
+  background: var(--color-primary-50);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.search-result-item {
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--color-gray-50);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.search-result-item:last-child { border-bottom: none; }
+.search-result-item:hover { background: var(--color-primary-50); }
+
+.search-result-item .article-num {
+  font-weight: 600;
+  font-size: var(--text-xs);
+  color: var(--color-primary-600);
+  margin-bottom: var(--space-1);
+}
+
+.search-result-item .article-snippet {
+  font-size: var(--text-sm);
+  color: var(--color-gray-700);
+  line-height: 1.6;
+}
+
+/* 搜索统计条 */
+.search-stats {
+  font-size: var(--text-xs);
+  color: var(--color-gray-500);
+  margin-bottom: var(--space-4);
+  padding: 0 var(--space-1);
 }
 
 /* ── 响应式 ── */

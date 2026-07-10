@@ -6,7 +6,7 @@
 
   <h1 style="font-size: var(--text-2xl); font-weight: 600; margin-bottom: var(--space-6);">法律知识库</h1>
 
-  <!-- 搜索框 -->
+  <!-- 搜索框 + 提示 -->
   <div class="search-box">
     <span class="search-icon">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -17,9 +17,13 @@
       id="knowledgeSearch"
       class="input"
       type="text"
-      placeholder="搜索法律法规、法条关键词…"
+      placeholder="搜索法律法规名称或法条关键词，如"劳动合同"、"正当防卫"…"
       autocomplete="off"
     />
+    <!-- 清除按钮 -->
+    <button id="searchClear" class="search-clear" style="display:none;" title="清除搜索">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
   </div>
 
   <!-- 分类选项卡 -->
@@ -29,14 +33,15 @@
     <button class="knowledge-tab" data-category="civil">民法</button>
     <button class="knowledge-tab" data-category="criminal">刑法</button>
     <button class="knowledge-tab" data-category="labor">劳动法</button>
-    <button class="knowledge-tab" data-category="marriage">婚姻法</button>
-    <button class="knowledge-tab" data-category="contract">合同法</button>
+    <button class="knowledge-tab" data-category="marriage">婚姻家庭</button>
     <button class="knowledge-tab" data-category="traffic">交通法</button>
-    <button class="knowledge-tab" data-category="housing">房产法</button>
     <button class="knowledge-tab" data-category="consumer">消费者权益</button>
   </div>
 
-  <!-- 法条列表 -->
+  <!-- 搜索统计 -->
+  <div id="searchStats" class="search-stats" style="display:none;"></div>
+
+  <!-- 结果区域 -->
   <div id="knowledgeList">
     <div style="text-align:center;padding:var(--space-12);">
       <div class="spinner"></div>
@@ -54,46 +59,96 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<script src="/static/js/laws_data.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const searchInput = document.getElementById('knowledgeSearch');
+  const searchClear = document.getElementById('searchClear');
   const tabs = document.getElementById('knowledgeTabs');
   const listEl = document.getElementById('knowledgeList');
   const emptyEl = document.getElementById('knowledgeEmpty');
+  const statsEl = document.getElementById('searchStats');
 
   let currentCategory = 'all';
   let searchTimeout = null;
 
-  // 模拟法条数据（实际从后端API获取）
-  const mockLaws = [
-    { id: 1, name: '中华人民共和国宪法', category: 'constitution', year: '1982', summary: '国家根本法，规定国家根本制度和根本任务' },
-    { id: 2, name: '中华人民共和国民法典', category: 'civil', year: '2020', summary: '调整平等主体之间的人身关系和财产关系' },
-    { id: 3, name: '中华人民共和国刑法', category: 'criminal', year: '2020修正', summary: '规定犯罪、刑事责任和刑罚的法律' },
-    { id: 4, name: '中华人民共和国劳动法', category: 'labor', year: '2018修正', summary: '调整劳动关系及与劳动关系密切联系的其他社会关系' },
-    { id: 5, name: '中华人民共和国劳动合同法', category: 'labor', year: '2012修正', summary: '规范劳动合同的订立、履行、变更、解除和终止' },
-    { id: 6, name: '中华人民共和国婚姻法', category: 'marriage', year: '2001修正', summary: '调整婚姻家庭关系的法律规范' },
-    { id: 7, name: '中华人民共和国合同法', category: 'contract', year: '1999', summary: '调整平等主体之间合同关系的法律' },
-    { id: 8, name: '中华人民共和国道路交通安全法', category: 'traffic', year: '2021修正', summary: '维护道路交通秩序，预防和减少交通事故' },
-    { id: 9, name: '中华人民共和国城市房地产管理法', category: 'housing', year: '2019修正', summary: '加强对城市房地产的管理，维护房地产市场秩序' },
-    { id: 10, name: '中华人民共和国消费者权益保护法', category: 'consumer', year: '2013修正', summary: '保护消费者合法权益，维护社会经济秩序' },
-    { id: 11, name: '中华人民共和国反家庭暴力法', category: 'marriage', year: '2015', summary: '预防和制止家庭暴力，保护家庭成员的合法权益' },
-    { id: 12, name: '中华人民共和国侵权责任法', category: 'civil', year: '2009', summary: '保护民事主体的合法权益，明确侵权责任' },
-  ];
+  // 全量法律数据（含法条内容），带缓存
+  const fullLawsData = window.LAWS_DATA || [];
 
-  function renderLaws(laws) {
+  // 法律摘要列表（用于浏览模式）
+  const lawSummaries = fullLawsData.map(law => ({
+    id: law.id,
+    name: law.name,
+    category: law.category,
+    year: law.year,
+    summary: law.summary,
+    articleCount: law.articleCount,
+  }));
+
+  function getCategoryName(category) {
+    const names = {
+      'constitution': '宪法', 'civil': '民法', 'criminal': '刑法',
+      'labor': '劳动法', 'marriage': '婚姻家庭', 'traffic': '交通法',
+      'consumer': '消费者权益', 'housing': '房产法', 'other': '其他',
+    };
+    return names[category] || category;
+  }
+
+  // ── 高亮关键词 ──
+  function highlightText(text, query) {
+    if (!query) return escapeHtml(text);
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${escapedQuery})`, 'gi');
+    return escapeHtml(text).replace(regex, '<mark class="highlight">$1</mark>');
+  }
+
+  // ── 截取关键词附近的文本片段 ──
+  function getSnippet(content, query, maxLen) {
+    maxLen = maxLen || 120;
+    if (!query) return content.length > maxLen ? content.slice(0, maxLen) + '…' : content;
+
+    const lowerContent = content.toLowerCase();
+    const lowerQuery = query.toLowerCase();
+    const idx = lowerContent.indexOf(lowerQuery);
+
+    if (idx === -1) return content.length > maxLen ? content.slice(0, maxLen) + '…' : content;
+
+    const half = Math.floor((maxLen - query.length) / 2);
+    let start = Math.max(0, idx - half);
+    let end = Math.min(content.length, idx + query.length + half);
+
+    // 调整到完整字符边界
+    if (start > 0) start = Math.max(0, content.lastIndexOf('，', start) + 1);
+    if (start === 0) start = Math.max(0, content.lastIndexOf('。', idx - half) + 1);
+    if (end < content.length) {
+      const nextPeriod = content.indexOf('。', end);
+      if (nextPeriod !== -1 && nextPeriod - end < 20) end = nextPeriod + 1;
+    }
+
+    let snippet = content.slice(start, end);
+    if (start > 0) snippet = '…' + snippet;
+    if (end < content.length) snippet = snippet + '…';
+
+    return snippet;
+  }
+
+  // ── 浏览模式：显示法律列表 ──
+  function renderBrowseMode(lawsData) {
+    statsEl.style.display = 'none';
     listEl.innerHTML = '';
-    if (laws.length === 0) {
+
+    if (lawsData.length === 0) {
       emptyEl.style.display = 'flex';
       return;
     }
     emptyEl.style.display = 'none';
 
-    laws.forEach(law => {
+    lawsData.forEach(law => {
       const item = document.createElement('div');
       item.className = 'law-list-item';
       item.innerHTML = `
         <div class="name">${escapeHtml(law.name)}</div>
-        <div class="info">${escapeHtml(law.year)} · ${escapeHtml(law.summary)}</div>
+        <div class="info">${escapeHtml(law.year)} · ${escapeHtml(law.summary)} · 共${law.articleCount}条</div>
       `;
       item.addEventListener('click', () => {
         window.location.href = `/knowledge/${law.id}`;
@@ -102,25 +157,139 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function filterAndRender() {
-    const query = searchInput.value.trim().toLowerCase();
-    let filtered = mockLaws;
-    if (currentCategory !== 'all') {
-      filtered = filtered.filter(l => l.category === currentCategory);
+  // ── 搜索模式：深度检索法条内容 ──
+  function renderSearchMode(query, category) {
+    listEl.innerHTML = '';
+    emptyEl.style.display = 'none';
+    statsEl.style.display = 'block';
+
+    const results = []; // { lawId, lawName, lawYear, matches: [{num, content}] }
+
+    for (const law of fullLawsData) {
+      if (category !== 'all' && law.category !== category) continue;
+
+      const lawMatches = [];
+      const nameMatch = law.name.toLowerCase().includes(query);
+
+      // 搜索法条内容
+      for (const article of (law.articles || [])) {
+        if (article.content && article.content.toLowerCase().includes(query)) {
+          lawMatches.push({ num: article.num, content: article.content });
+        }
+      }
+
+      if (nameMatch || lawMatches.length > 0) {
+        results.push({
+          lawId: law.id,
+          lawName: law.name,
+          lawYear: law.year,
+          lawCategory: law.category,
+          nameMatch: nameMatch,
+          matches: lawMatches,
+          totalArticles: law.articleCount,
+        });
+      }
     }
-    if (query) {
-      filtered = filtered.filter(l =>
-        l.name.toLowerCase().includes(query) ||
-        l.summary.toLowerCase().includes(query)
-      );
+
+    if (results.length === 0) {
+      emptyEl.style.display = 'flex';
+      statsEl.textContent = `未找到与"${escapeHtml(query)}"相关的法条`;
+      return;
     }
-    renderLaws(filtered);
+
+    const totalMatches = results.reduce((sum, r) => sum + r.matches.length, 0);
+    statsEl.textContent = `搜索"${escapeHtml(query)}"，找到 ${results.length} 部法律、${totalMatches} 条匹配法条`;
+
+    results.forEach(result => {
+      const group = document.createElement('div');
+      group.className = 'search-result-group';
+
+      // 组头：法律名称 + 匹配数
+      const header = document.createElement('div');
+      header.className = 'search-result-group-header';
+      header.innerHTML = `
+        <span class="law-name">${highlightText(result.lawName, query)}</span>
+        <span class="match-count">${result.matches.length} 条匹配</span>
+      `;
+      header.addEventListener('click', () => {
+        window.location.href = `/knowledge/${result.lawId}`;
+      });
+      group.appendChild(header);
+
+      // 如果名称匹配但无法条匹配，显示摘要
+      if (result.nameMatch && result.matches.length === 0) {
+        const summaryItem = document.createElement('div');
+        summaryItem.className = 'search-result-item';
+        summaryItem.innerHTML = `<div class="article-snippet">${escapeHtml(result.lawYear)} · 共${result.totalArticles}条</div>`;
+        summaryItem.addEventListener('click', () => {
+          window.location.href = `/knowledge/${result.lawId}`;
+        });
+        group.appendChild(summaryItem);
+      }
+
+      // 匹配的法条列表（最多显示10条）
+      const showMatches = result.matches.slice(0, 10);
+      showMatches.forEach(match => {
+        const item = document.createElement('div');
+        item.className = 'search-result-item';
+        const snippet = getSnippet(match.content, query, 150);
+        item.innerHTML = `
+          <div class="article-num">第${escapeHtml(match.num)}条</div>
+          <div class="article-snippet">${highlightText(snippet, query)}</div>
+        `;
+        item.addEventListener('click', () => {
+          window.location.href = `/knowledge/${result.lawId}#article-${match.num}`;
+        });
+        group.appendChild(item);
+      });
+
+      // 如果匹配超过10条，显示"查看更多"
+      if (result.matches.length > 10) {
+        const moreItem = document.createElement('div');
+        moreItem.className = 'search-result-item';
+        moreItem.innerHTML = `<div class="article-snippet" style="color:var(--color-primary-600);">查看全部 ${result.matches.length} 条匹配结果 →</div>`;
+        moreItem.addEventListener('click', () => {
+          window.location.href = `/knowledge/${result.lawId}`;
+        });
+        group.appendChild(moreItem);
+      }
+
+      listEl.appendChild(group);
+    });
   }
 
-  // 搜索
+  // ── 主过滤/渲染入口 ──
+  function filterAndRender() {
+    const query = searchInput.value.trim().toLowerCase();
+
+    // 控制清除按钮显示
+    searchClear.style.display = query ? 'block' : 'none';
+
+    if (query) {
+      // 搜索模式：深度检索
+      renderSearchMode(query, currentCategory);
+    } else {
+      // 浏览模式
+      let filtered = lawSummaries;
+      if (currentCategory !== 'all') {
+        filtered = filtered.filter(l => l.category === currentCategory);
+      }
+      renderBrowseMode(filtered);
+    }
+  }
+
+  // ── 事件监听 ──
   searchInput.addEventListener('input', () => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(filterAndRender, 300);
+  });
+
+  // 清除搜索
+  searchClear.addEventListener('click', () => {
+    searchInput.value = '';
+    searchClear.style.display = 'none';
+    filterAndRender();
+    searchInput.focus();
   });
 
   // 分类切换
@@ -134,8 +303,16 @@ document.addEventListener('DOMContentLoaded', () => {
     filterAndRender();
   });
 
+  // 搜索框快捷键：Esc 清除
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      searchInput.value = '';
+      filterAndRender();
+    }
+  });
+
   // 初始加载
-  renderLaws(mockLaws);
+  renderBrowseMode(lawSummaries);
 });
 </script>
 {% endblock %}

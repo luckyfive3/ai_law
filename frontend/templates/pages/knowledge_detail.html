@@ -5,7 +5,7 @@
 <div class="container" style="padding-top: var(--space-6); padding-bottom: var(--space-12); max-width: 800px;">
 
   <!-- 返回 + 面包屑 -->
-  <a href="/knowledge" style="font-size: var(--text-sm); color: var(--color-gray-500); display: inline-block; margin-bottom: var(--space-6);">
+  <a href="/knowledge" style="font-size: var(--text-sm); color: var(--color-gray-500); display: inline-block; margin-bottom: var(--space-4);">
     ← 返回知识库
   </a>
 
@@ -20,47 +20,160 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<script src="/static/js/laws_data.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  const lawId = '{{ law_id }}';
-
-  // 模拟法条数据（实际从后端 API 获取）
-  const lawData = {
-    title: '中华人民共和国民法典',
-    year: '2020年5月28日颁布，2021年1月1日施行',
-    articles: [
-      { num: '第一条', content: '为了保护民事主体的合法权益，调整民事关系，维护社会和经济秩序，适应中国特色社会主义发展要求，弘扬社会主义核心价值观，根据宪法，制定本法。' },
-      { num: '第二条', content: '民法调整平等主体的自然人、法人和非法人组织之间的人身关系和财产关系。' },
-      { num: '第三条', content: '民事主体的人身权利、财产权利以及其他合法权益受法律保护，任何组织或者个人不得侵犯。' },
-      { num: '第四条', content: '民事主体在民事活动中的法律地位一律平等。' },
-      { num: '第五条', content: '民事主体从事民事活动，应当遵循自愿原则，按照自己的意思设立、变更、终止民事法律关系。' },
-      { num: '第六条', content: '民事主体从事民事活动，应当遵循公平原则，合理确定各方的权利和义务。' },
-      { num: '第七条', content: '民事主体从事民事活动，应当遵循诚信原则，秉持诚实，恪守承诺。' },
-      { num: '第八条', content: '民事主体从事民事活动，不得违反法律，不得违背公序良俗。' },
-    ],
-  };
-
+  const lawId = {{ law_id | int }};
   const container = document.getElementById('lawDetail');
+
+  // 从真实数据中查找对应法律
+  const lawData = (window.LAWS_DATA || []).find(l => l.id === lawId);
+
+  if (!lawData) {
+    container.innerHTML = `
+      <div class="empty-state" style="display:flex;">
+        <div class="icon">📚</div>
+        <div class="title">未找到该法条</div>
+        <div class="desc">请返回知识库重新选择</div>
+      </div>
+    `;
+    return;
+  }
+
+  // 格式化法条编号：去掉"第"和"条"（修复"第第"问题）
+  function formatArticleNum(num) {
+    return num.replace(/^第/, '').replace(/条$/, '');
+  }
+
+  // 解析 URL 中的搜索参数
+  const urlParams = new URLSearchParams(window.location.search);
+  const searchQuery = urlParams.get('q') || '';
 
   container.innerHTML = `
     <h1 style="font-size: var(--text-2xl); font-weight: 700; margin-bottom: var(--space-2);">
-      ${escapeHtml(lawData.title)}
+      ${escapeHtml(lawData.name)}
     </h1>
-    <p style="font-size: var(--text-sm); color: var(--color-gray-500); margin-bottom: var(--space-8);">
-      ${escapeHtml(lawData.year)}
+    <p style="font-size: var(--text-sm); color: var(--color-gray-500); margin-bottom: var(--space-4);">
+      ${escapeHtml(lawData.year)} · 共 ${lawData.articleCount} 条
     </p>
 
-    <div style="background:#fff;border:1px solid var(--color-gray-200);border-radius:var(--radius-xl);overflow:hidden;">
-      ${lawData.articles.map(a => `
-        <div id="article-${a.num}" style="padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--color-gray-100); transition: background var(--transition-fast);">
+    <!-- 页内搜索 -->
+    <div class="search-box" style="margin-bottom: var(--space-6);">
+      <span class="search-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+        </svg>
+      </span>
+      <input
+        id="articleSearch"
+        class="input"
+        type="text"
+        placeholder="在本法中搜索法条内容…"
+        autocomplete="off"
+        value="${escapeHtml(searchQuery)}"
+      />
+    </div>
+
+    <!-- 搜索结果提示 -->
+    <div id="articleSearchInfo" class="search-stats" style="display:none;"></div>
+
+    <div style="background:#fff;border:1px solid var(--color-gray-200);border-radius:var(--radius-xl);overflow:hidden;" id="articlesContainer">
+      ${lawData.articles.map((a, idx) => {
+        const numDisplay = formatArticleNum(a.num);
+        return `
+        <div data-article-num="${escapeHtml(numDisplay)}" class="article-block" id="article-${escapeHtml(numDisplay)}" style="padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--color-gray-100); transition: background var(--transition-fast);">
           <div style="font-weight: 600; color: var(--color-primary-700); margin-bottom: var(--space-2); font-size: var(--text-sm);">
-            第${escapeHtml(a.num)}条
+            第${escapeHtml(numDisplay)}条
           </div>
-          <p style="font-size: var(--text-sm); color: var(--color-gray-700); line-height: 1.8;">${escapeHtml(a.content)}</p>
+          <p class="article-content" style="font-size: var(--text-sm); color: var(--color-gray-700); line-height: 1.8;">${escapeHtml(a.content)}</p>
         </div>
-      `).join('')}
+      `}).join('')}
     </div>
   `;
+
+  // ── 页内搜索功能 ──
+  const articleSearch = document.getElementById('articleSearch');
+  const articleSearchInfo = document.getElementById('articleSearchInfo');
+  const articlesContainer = document.getElementById('articlesContainer');
+  let articleSearchTimeout = null;
+
+  function highlightArticleText(text, query) {
+    if (!query) return escapeHtml(text);
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${escapedQuery})`, 'gi');
+    return escapeHtml(text).replace(regex, '<mark class="highlight">$1</mark>');
+  }
+
+  function filterArticles() {
+    const query = articleSearch.value.trim().toLowerCase();
+    const allBlocks = articlesContainer.querySelectorAll('.article-block');
+    let matchCount = 0;
+
+    allBlocks.forEach(block => {
+      const contentEl = block.querySelector('.article-content');
+      const originalContent = lawData.articles.find(a => {
+        const num = formatArticleNum(a.num);
+        return block.dataset.articleNum === num;
+      });
+
+      if (!query) {
+        block.style.display = '';
+        if (contentEl && originalContent) {
+          contentEl.innerHTML = escapeHtml(originalContent.content);
+        }
+        return;
+      }
+
+      if (originalContent && originalContent.content.toLowerCase().includes(query)) {
+        block.style.display = '';
+        contentEl.innerHTML = highlightArticleText(originalContent.content, query);
+        matchCount++;
+      } else {
+        block.style.display = 'none';
+      }
+    });
+
+    if (query) {
+      articleSearchInfo.style.display = 'block';
+      articleSearchInfo.textContent = matchCount > 0
+        ? `找到 ${matchCount} 条匹配法条`
+        : '未找到匹配法条';
+    } else {
+      articleSearchInfo.style.display = 'none';
+    }
+  }
+
+  articleSearch.addEventListener('input', () => {
+    clearTimeout(articleSearchTimeout);
+    articleSearchTimeout = setTimeout(filterArticles, 200);
+  });
+
+  // 初始时如果有搜索参数，执行搜索
+  if (searchQuery) {
+    filterArticles();
+  }
+
+  // ── 锚点定位：滚动到指定法条并高亮 ──
+  function scrollToAnchor() {
+    const hash = window.location.hash;
+    if (!hash) return;
+
+    const targetBlock = document.querySelector(hash);
+    if (targetBlock) {
+      // 短暂延迟确保 DOM 渲染完成
+      setTimeout(() => {
+        targetBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        targetBlock.style.background = 'var(--color-primary-50)';
+        setTimeout(() => {
+          targetBlock.style.background = '';
+        }, 3000);
+      }, 100);
+    }
+  }
+
+  // 监听 hash 变化
+  window.addEventListener('hashchange', scrollToAnchor);
+  scrollToAnchor();
 });
 </script>
 {% endblock %}

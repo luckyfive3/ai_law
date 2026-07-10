@@ -22,7 +22,7 @@ async def home_page(request: Request):
 
 # ── P2 对话页 ──
 @router.get("/chat")
-async def chat_page(request: Request, session_id: int = None):
+async def chat_page(request: Request, session_id: str = None):
     return templates.TemplateResponse(
         request, "pages/chat.html",
         {"page": "chat", "session_id": session_id},
@@ -37,7 +37,7 @@ async def history_page(request: Request):
 
 # ── P5 历史对话详情 ──
 @router.get("/history/{session_id}")
-async def history_detail_page(request: Request, session_id: int):
+async def history_detail_page(request: Request, session_id: str):
     return templates.TemplateResponse(
         request, "pages/history_detail.html",
         {"page": "history_detail", "session_id": session_id},
