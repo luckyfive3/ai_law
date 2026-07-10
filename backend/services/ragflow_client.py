@@ -35,6 +35,7 @@ class RAGFlowClient:
 
         # 初始化 RAGFlow SDK 实例
         self._rag: Optional[RAGFlow] = None
+        self._doc_name_cache: dict = {}
         if self.api_key and self.base_url:
             try:
                 self._rag = RAGFlow(
@@ -48,6 +49,31 @@ class RAGFlowClient:
     def _get_rag(self) -> Optional[RAGFlow]:
         """获取 SDK 实例"""
         return self._rag
+
+    async def _ensure_doc_names(self, dataset_id: str):
+        """确保文档名缓存已加载"""
+        if self._doc_name_cache:
+            return
+        rag = self._get_rag()
+        if not rag:
+            return
+        try:
+            datasets = await asyncio.to_thread(rag.list_datasets)
+            for ds in datasets:
+                if ds.id == dataset_id:
+                    docs = await asyncio.to_thread(ds.list_documents)
+                    for d in docs:
+                        name = d.name
+                        # Extract clean name from path like "law/xxx.docx"
+                        if '/' in name:
+                            name = name.split('/')[-1]
+                        if name.endswith('.docx'):
+                            name = name[:-5]
+                        self._doc_name_cache[d.id] = name
+                    logger.info(f"已加载 {len(self._doc_name_cache)} 个文档名")
+                    break
+        except Exception as e:
+            logger.warning(f"加载文档名失败: {e}")
 
     # ═══════════════════════════════════════
     # 检索
@@ -86,12 +112,16 @@ class RAGFlowClient:
             return []
 
         try:
+            # 确保文档名已加载
+            await self._ensure_doc_names(ds_id)
+
             # RAGFlow SDK 的 retrieve 是同步方法，在线程池中执行
             results = await asyncio.to_thread(
                 rag.retrieve,
                 question=query,
                 dataset_ids=[ds_id],
                 document_ids=[],
+                top_k=k,
             )
 
             # 标准化结果格式
@@ -102,11 +132,15 @@ class RAGFlowClient:
                 if similarity < self.similarity_threshold:
                     continue
 
+                doc_name = getattr(chunk, "document_name", "") or ""
+                doc_id = getattr(chunk, "document_id", "") or ""
+                law_name = self._doc_name_cache.get(doc_id, doc_name) or "未知法律"
+
                 parsed.append({
-                    "law_name": getattr(chunk, "doc_name", "") or "未知法律",
+                    "law_name": law_name,
                     "article_num": "",
                     "law_text": getattr(chunk, "content", "") or "",
-                    "source": getattr(chunk, "doc_name", "") or "",
+                    "source": law_name,
                     "chunk_id": str(getattr(chunk, "id", "")),
                     "relevance": similarity,
                 })
