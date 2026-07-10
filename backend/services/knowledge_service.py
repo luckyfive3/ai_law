@@ -34,6 +34,8 @@ class KnowledgeService:
         """
         self.ragflow_client = ragflow_client
         self._laws_data = None
+        self._search_cache = {}
+        self._cache_ttl = 300  # 缓存5分钟
 
     def _load_laws_data(self) -> list:
         """加载法学数据（带缓存）"""
@@ -125,6 +127,13 @@ class KnowledgeService:
                 - items: 搜索结果列表
                 - count: 总数
         """
+        import time
+        cache_key = f"{keyword}:{page}:{page_size}"
+        if cache_key in self._search_cache:
+            entry = self._search_cache[cache_key]
+            if time.time() - entry["ts"] < self._cache_ttl:
+                return entry["data"]
+
         # 调用 RAGFlow 检索
         try:
             results = await self.ragflow_client.search(
@@ -158,10 +167,13 @@ class KnowledgeService:
                 "relevance": item.get("relevance", 0),
             })
 
-        return {
+        result = {
             "items": items,
             "count": total,
         }
+        # 写入缓存
+        self._search_cache[cache_key] = {"data": result, "ts": time.time()}
+        return result
 
     # ═══════════════════════════════════════
     # 法条详情

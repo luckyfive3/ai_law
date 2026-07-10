@@ -13,8 +13,11 @@ from config import Settings
 from utils import errcode
 
 
-# 全局限流器实例（应用启动时初始化）
-limiter = Limiter(key_func=get_remote_address)
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+# 全局限流器实例
+limiter = Limiter(key_func=get_remote_address, default_limits=["30/minute"])
 
 
 def setup_rate_limiter(app: FastAPI, settings: Settings) -> None:

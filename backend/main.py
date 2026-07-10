@@ -36,6 +36,7 @@ from middleware.logger import RequestLoggerMiddleware
 from middleware.content_safety import ContentSafety
 from middleware.cors import setup_cors
 from middleware.rate_limiter import setup_rate_limiter
+from slowapi.middleware import SlowAPIMiddleware
 
 # ── API 路由 ──
 from api.auth import router as auth_router
@@ -214,6 +215,7 @@ app.middleware("http")(content_safety_middleware.middleware)
 
 # 4. 全局限流中间件
 setup_rate_limiter(app, settings)
+app.add_middleware(SlowAPIMiddleware)
 
 # ══════════════════════════════════════════════════════════════
 # API 路由注册

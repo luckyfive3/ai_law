@@ -1,3 +1,4 @@
+from middleware.rate_limiter import limiter
 """
 AI法律助手 v1.0 — 认证 API 路由
 提供用户注册、登录、Token 刷新、退出登录接口
@@ -29,7 +30,8 @@ def get_auth_service(request: Request):
 # ==================== 注册 ====================
 
 @router.post("/register", summary="用户注册")
-async def register(
+@limiter.limit("5/minute")
+async def register(request: Request, 
     req: RegisterRequest,
     auth_service=Depends(get_auth_service),
 ):

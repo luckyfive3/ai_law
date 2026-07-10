@@ -16,6 +16,12 @@ const Chat = {
   init(sessionId) {
     this.currentSessionId = sessionId || null;
 
+    // 未登录 → 跳转登录页
+    if (!Auth.isLoggedIn()) {
+      window.location.href = '/login?redirect=' + encodeURIComponent('/chat' + (sessionId ? '?session_id=' + sessionId : ''));
+      return;
+    }
+
     // 没有 URL 参数但 sessionStorage 有记录且已登录 → 恢复上次会话
     if (!this.currentSessionId && Auth.isLoggedIn()) {
       const lastId = sessionStorage.getItem(this.STORAGE_KEY);
@@ -673,7 +679,11 @@ const Chat = {
       const btn = e.target.closest('.quick-question');
       if (btn) {
         const question = btn.dataset.question;
-        if (question) this.sendMessage(question);
+        if (question) {
+          const input = document.getElementById('chatInput');
+          if (input) input.value = question;
+          this.sendMessage(question);
+        }
       }
     });
   },
