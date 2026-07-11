@@ -82,9 +82,11 @@ const History = {
 
       const item = document.createElement('div');
       item.className = 'history-item';
+      const summaryText = session.summary ? `<div class="history-item-summary">${escapeHtml(session.summary)}</div>` : '';
       item.innerHTML = `
         <div class="history-item-main">
           <div class="history-item-title">${escapeHtml(session.title || '法律咨询')}</div>
+          ${summaryText}
           <div class="history-item-meta">
             ${session.msg_count || 0} 条消息 · ${formatTime(session.updated_at)}
           </div>

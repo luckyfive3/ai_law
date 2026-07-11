@@ -68,6 +68,10 @@ async def _create_indexes():
     await _db.sms_codes.create_index("phone_hash")
     await _db.sms_codes.create_index("expires_at", expireAfterSeconds=0)
 
+    # 用户画像集合
+    await _db.user_profiles.create_index("user_id", unique=True)
+    await _db.user_profiles.create_index("updated_at")
+
     logger.info("MongoDB 索引创建完成")
 
 

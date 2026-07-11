@@ -153,6 +153,7 @@ class SessionService:
             sessions.append({
                 "id": str(doc["_id"]),
                 "title": doc.get("title", "法律咨询"),
+                "summary": doc.get("summary", ""),
                 "category": doc.get("category", ""),
                 "msg_count": doc.get("msg_count", 0),
                 "updated_at": doc.get("updated_at", ""),

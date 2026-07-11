@@ -1,9 +1,10 @@
 """
 AI法律助手 v1.0 — 升级版聊天服务（LangChain 增强）
-集成 RAGFlowRetriever、LegalRAGChain、CallbackHandler
+集成 RAGFlowRetriever、LegalRAGChain、CallbackHandler、会话摘要与用户画像
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import AsyncGenerator, List, Tuple, Optional
@@ -40,6 +41,8 @@ class ChatService:
         2. 集成 LegalAICallbackHandler 自动 Token 统计和监控
         3. 使用 RAGFlowRetriever（LangChain 标准接口）替代直接 HTTP 调用
         4. 使用 ChatPromptTemplate 替代字符串拼接
+        5. 对话结束后自动生成会话摘要 + 更新用户画像
+        6. 注入用户画像到对话上下文，实现个性化回答
     """
 
     def __init__(
@@ -49,12 +52,14 @@ class ChatService:
         llm_service: LLMService,
         safety_filter: SafetyFilter,
         content_safety: ContentSafetyCheck,
+        summary_service=None,
     ):
         self.db = db
         self.ragflow_client = ragflow_client
         self.llm_service = llm_service
         self.safety_filter = safety_filter
         self.content_safety = content_safety
+        self.summary_service = summary_service
 
         # ── LangChain 增强组件 ──
         # 1. Retriever（封装 RAGFlow）
@@ -238,6 +243,17 @@ class ChatService:
         law_docs = await self._retriever._aget_relevant_documents(query)
         legal_context = format_docs(law_docs)
 
+        # 4.5 获取用户画像，增强 legal_context
+        personalized_hint = ""
+        if self.summary_service:
+            try:
+                personalized_hint = await self.summary_service.get_personalized_context(user_id)
+                if personalized_hint:
+                    legal_context = f"[用户历史与偏好]\n{personalized_hint}\n\n{legal_context}"
+            except Exception as e:
+                logger.warning(f"获取用户画像上下文失败: {e}")
+                # 不影响主流程，继续正常对话
+
         # 5. 获取历史消息 → 转为 LangChain 消息
         history_dicts = await self._get_history(session_id)
         history_msgs = LegalRAGChain.dict_to_langchain_messages(history_dicts)
@@ -313,6 +329,9 @@ class ChatService:
 
         # 11. 审计
         self._log_audit(user_id, client_ip, "send_message", "session", session_id, f"查询: {query[:100]}")
+
+        # 11.5 后台任务：自动生成会话摘要 + 更新用户画像
+        self._trigger_auto_summary(session_id, user_id)
 
         # 12. 完成
         yield {
@@ -413,5 +432,25 @@ class ChatService:
         try:
             loop = asyncio.get_running_loop()
             loop.create_task(_insert())
+        except RuntimeError:
+            pass
+
+    def _trigger_auto_summary(self, session_id: str, user_id: str):
+        """后台触发会话摘要生成和用户画像更新（非阻塞）"""
+        if not self.summary_service:
+            return
+
+        async def _run():
+            try:
+                await self.summary_service.auto_summary_and_profile(
+                    session_id=session_id,
+                    user_id=user_id,
+                )
+            except Exception as e:
+                logger.warning(f"后台摘要/画像任务异常: {e}")
+
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(_run())
         except RuntimeError:
             pass

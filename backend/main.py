@@ -139,6 +139,10 @@ def _init_services(app: FastAPI) -> None:
     user_service = UserService(db)
     session_service = SessionService(db)
 
+    # ── 摘要与用户画像服务 ──
+    from services.summary_service import SummaryService
+    summary_service = SummaryService(db=db, llm_service=llm_service)
+
     # ── 组合服务（v2 升级版：LangChain LCEL RAG 链 + 结构化 Prompt） ──
     chat_service = ChatServiceV2(
         db=db,
@@ -146,6 +150,7 @@ def _init_services(app: FastAPI) -> None:
         llm_service=llm_service,
         safety_filter=safety_filter,
         content_safety=content_safety_check,
+        summary_service=summary_service,
     )
     knowledge_service = KnowledgeService(ragflow_client=ragflow_client)
 
@@ -158,6 +163,7 @@ def _init_services(app: FastAPI) -> None:
         "auth_service": auth_service,
         "user_service": user_service,
         "session_service": session_service,
+        "summary_service": summary_service,
         "chat_service": chat_service,
         "knowledge_service": knowledge_service,
     }
@@ -222,6 +228,10 @@ app.include_router(user_router)
 app.include_router(session_router)
 app.include_router(chat_router)
 app.include_router(knowledge_router)
+
+# ── 摘要与用户画像 ──
+from api.summary import router as summary_router
+app.include_router(summary_router)
 
 # ══════════════════════════════════════════════════════════════
 # 健康检查端点

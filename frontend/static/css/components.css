@@ -427,6 +427,17 @@
   text-overflow: ellipsis;
 }
 
+.history-item-summary {
+  font-size: var(--text-xs);
+  color: var(--color-gray-500);
+  margin-top: var(--space-1);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .history-item-meta {
   font-size: var(--text-xs);
   color: var(--color-gray-500);
@@ -436,6 +447,60 @@
 .history-item-delete {
   opacity: 0;
   transition: opacity var(--transition-fast);
+}
+
+/* ── 用户画像卡片 ── */
+
+.user-profile-card {
+  background: linear-gradient(135deg, var(--color-primary-50), var(--color-gray-50));
+  border: 1px solid var(--color-primary-100);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.user-profile-card-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-primary-700);
+  margin-bottom: var(--space-2);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.user-profile-card-text {
+  font-size: var(--text-xs);
+  color: var(--color-gray-600);
+  line-height: 1.6;
+}
+
+.user-profile-stats {
+  display: flex;
+  gap: var(--space-4);
+  margin-top: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.user-profile-stat {
+  background: white;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  color: var(--color-gray-600);
+}
+
+.user-profile-stat strong {
+  color: var(--color-primary-600);
+  font-weight: 600;
+}
+
+.user-profile-empty {
+  text-align: center;
+  padding: var(--space-4);
+  color: var(--color-gray-400);
+  font-size: var(--text-xs);
+}
   color: var(--color-accent-red);
   font-size: var(--text-xl);
   padding: var(--space-2);
