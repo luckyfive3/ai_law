@@ -24,10 +24,12 @@ AI法律助手是一套基于 **FastAPI + MongoDB + RAGFlow + DeepSeek LLM** 的
          /\
         /E2E\          Playwright 浏览器自动化 — 19 条用户流程
        /------\
-      /  集成   \       pytest + FastAPI TestClient — 46 条 API 场景
+      /  集成   \       pytest + FastAPI TestClient — 61 条 API 场景
      /----------\
-    /   单元测试  \      pytest + unittest.mock — 152 条 service/util/schema
-   /--------------\
+    / 前端单测  \      vitest + jsdom — 50 条 JS 模块
+   /------------\
+  /   后端单测   \     pytest + unittest.mock — 280 条 service/util/schema
+ /--------------\
 ```
 
 ### 2.2 各层职责
@@ -43,18 +45,22 @@ AI法律助手是一套基于 **FastAPI + MongoDB + RAGFlow + DeepSeek LLM** 的
 ```bash
 # 安装测试依赖
 pip install pytest pytest-asyncio pytest-cov mongomock httpx
+npm install
 
-# 单元测试（不需要外部依赖）
+# 后端单元测试
 cd backend
 python -m pytest tests/unit/ -v
 
-# 集成测试（需要 MongoDB）
+# 前端单元测试
+npx vitest run tests/frontend-unit/
+
+# 集成测试
 python -m pytest tests/integration/ -v
 
 # E2E 测试（需要前后端都启动）
 python -m pytest tests/e2e/ -v
 
-# 全部测试 + 覆盖率
+# 全部后端测试 + 覆盖率
 python -m pytest tests/ --cov=. --cov-report=html -v
 ```
 
@@ -141,7 +147,60 @@ python -m pytest tests/ --cov=. --cov-report=html -v
 
 ---
 
-## 四、集成测试用例清单
+## 四、前端单元测试用例清单
+
+### 4.1 工具函数 (`utils.test.js`)
+
+| 用例ID | 场景 | 预期 |
+|--------|------|------|
+| FE-UT-01 | escapeHtml 转义 & | `&amp;` |
+| FE-UT-02 | escapeHtml 转义 <> | `&lt;` `&gt;` |
+| FE-UT-03 | escapeHtml 转义引号 | `&quot;` `&#39;` |
+| FE-UT-04 | escapeHtml 空值处理 | 返回空字符串 |
+| FE-UT-05 | escapeHtml XSS 防护 | 不执行 script |
+| FE-UT-06 | formatTime 刚刚 | 小于1分钟 → "刚刚" |
+| FE-UT-07 | formatTime X分钟前 | 5分钟前 → "5分钟前" |
+| FE-UT-08 | formatTime X小时前 | 2小时前 → "2小时前" |
+| FE-UT-09 | formatTime 跨年显示 | 含完整年份 |
+| FE-UT-10 | formatDate 今天/昨天 | 相对日期正确 |
+| FE-UT-11 | formatDate 较早日期 | "2023年1月15日" |
+| FE-UT-12 | simpleMarkdown 粗体/斜体 | `<strong>` `<em>` |
+| FE-UT-13 | simpleMarkdown 标题 | `<h3>` `<h4>` |
+| FE-UT-14 | simpleMarkdown 代码块 | `<pre><code>` |
+| FE-UT-15 | simpleMarkdown 链接 | `<a target="_blank">` |
+| FE-UT-16 | simpleMarkdown 列表/引用 | `<ul>` `<blockquote>` |
+| FE-UT-17 | simpleMarkdown XSS 防护 | script 标签被转义 |
+
+### 4.2 鉴权状态管理 (`auth.test.js`)
+
+| 用例ID | 场景 | 预期 |
+|--------|------|------|
+| FE-UT-18 | Auth 初始未登录 | isLoggedIn=false |
+| FE-UT-19 | login 设置 token | token 和 user 存入 localStorage |
+| FE-UT-20 | logout 清除状态 | token/user 清空 |
+| FE-UT-21 | requireLogin 已登录 | 返回 true |
+| FE-UT-22 | requireLogin 未登录 | 返回跳转URL |
+| FE-UT-23 | init 恢复登录态 | 从 localStorage 恢复 |
+| FE-UT-24 | 防抖搜索 400ms | 只触发最后一次 |
+
+### 4.3 法律数据库 (`data-sse.test.js`)
+
+| 用例ID | 场景 | 预期 |
+|--------|------|------|
+| FE-UT-25 | LAWS_DATA 非空 | 数组长度 > 0 |
+| FE-UT-26 | 每条记录含必要字段 | id/name/category/articles |
+| FE-UT-27 | id 唯一 | 无重复 |
+| FE-UT-28 | SSE searching | 解析 status=searching |
+| FE-UT-29 | SSE generating | 解析 content 字段 |
+| FE-UT-30 | SSE done | 解析 tokens 统计 |
+| FE-UT-31 | SSE error | 解析错误事件 |
+| FE-UT-32 | SSE 流式多token | 拼接后 = "根据民法典" |
+| FE-UT-33 | SSE 忽略非data行 | event: ping 被跳过 |
+| FE-UT-34 | SSE 容忍坏JSON | 不崩溃 |
+
+---
+
+## 五、集成测试用例清单
 
 ### 4.1 认证 API (`test_auth_api.py`)
 
@@ -200,7 +259,7 @@ python -m pytest tests/ --cov=. --cov-report=html -v
 
 ---
 
-## 五、E2E 测试用例清单
+## 六、E2E 测试用例清单
 
 | 用例ID | 流程 | 步骤 | 验证点 |
 |--------|------|------|--------|
@@ -213,7 +272,7 @@ python -m pytest tests/ --cov=. --cov-report=html -v
 
 ---
 
-## 六、预期覆盖率目标
+## 七、预期覆盖率目标
 
 | 模块 | 行覆盖率 | 分支覆盖率 |
 |------|---------|-----------|
@@ -224,16 +283,17 @@ python -m pytest tests/ --cov=. --cov-report=html -v
 
 ---
 
-## 七、测试执行结果 (2026-07-11 最终版)
+## 八、测试执行结果 (2026-07-11 最终版)
 
 ### 总体统计
 
 | 层级 | 测试数 | 通过 | 失败 |
 |------|--------|------|------|
-| 单元测试 | 280 | 280 | 0 |
+| 后端单元测试 | 280 | 280 | 0 |
+| 前端单元测试 | 50 | 50 | 0 |
 | 集成测试 | 61 | 61 | 0 |
 | E2E | 19 | 19 | 0 |
-| **合计** | **360** | **360** | **0** |
+| **合计** | **410** | **410** | **0** |
 
 ### 单元测试覆盖详情
 

@@ -16,5 +16,13 @@
   "type": "commonjs",
   "dependencies": {
     "mongodb-memory-server": "^11.2.0"
+  },
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1",
+    "vitest": "^4.1.10"
   }
 }
