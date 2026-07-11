@@ -6,6 +6,16 @@ const Chat = {
   currentSessionId: null,
   isStreaming: false,
   abortController: null,
+  currentCategory: 'all',
+  CATEGORY_CONFIG: {
+    'all': { label: '综合', icon: '⚖️' },
+    'marriage': { label: '婚姻家庭', icon: '💒' },
+    'labor': { label: '劳动纠纷', icon: '💼' },
+    'contract': { label: '合同纠纷', icon: '📝' },
+    'traffic': { label: '交通事故', icon: '🚗' },
+    'housing': { label: '房产纠纷', icon: '🏠' },
+    'consumer': { label: '消费维权', icon: '🛒' },
+  },
   // 会话缓存: { [sessionId]: { title, updatedAt, msgCount, html } }
   conversationsCache: {},
   // 侧边栏会话元信息列表
@@ -15,6 +25,12 @@ const Chat = {
 
   init(sessionId) {
     this.currentSessionId = sessionId || null;
+
+    const params = new URLSearchParams(window.location.search);
+    const urlCategory = params.get('category');
+    if (urlCategory && this.CATEGORY_CONFIG[urlCategory]) {
+      this.currentCategory = urlCategory;
+    }
 
     // 未登录 → 跳转登录页
     if (!Auth.isLoggedIn()) {
@@ -26,13 +42,16 @@ const Chat = {
     if (!this.currentSessionId && Auth.isLoggedIn()) {
       const lastId = sessionStorage.getItem(this.STORAGE_KEY);
       if (lastId) {
-        window.location.replace(`/chat?session_id=${lastId}`);
+        let redirectUrl = `/chat?session_id=${lastId}`;
+        if (urlCategory) redirectUrl += `&category=${urlCategory}`;
+        window.location.replace(redirectUrl);
         return;
       }
     }
 
     this._bindEvents();
     this._setupInputAutoResize();
+    this._bindCategoryEvents();
     this._loadConversationList();
     this._bindMobileSidebar();
 
@@ -429,6 +448,35 @@ const Chat = {
     document.body.style.overflow = '';
   },
 
+  _bindCategoryEvents() {
+    const bar = document.getElementById('categoryBar');
+    if (!bar) return;
+    this._updateCategoryDisplay();
+    bar.querySelectorAll('.category-tag').forEach(tag => {
+      tag.addEventListener('click', () => {
+        if (this.isStreaming) { Toast.warning('请等待当前回复完成'); return; }
+        const newCat = tag.dataset.category;
+        if (newCat !== this.currentCategory) {
+          this._saveCurrentToCache();
+          this.currentCategory = newCat;
+          this.currentSessionId = null;
+          this._persistSessionId(null);
+          const list = document.getElementById('messageList');
+          if (list) list.innerHTML = '';
+          this._showWelcomeGuide();
+          window.history.replaceState(null, '', '/chat?category=' + newCat);
+        }
+        this._updateCategoryDisplay();
+      });
+    });
+  },
+
+  _updateCategoryDisplay() {
+    document.querySelectorAll('.category-tag').forEach(tag => {
+      tag.classList.toggle('active', tag.dataset.category === this.currentCategory);
+    });
+  },
+
   // ── 发送消息 ──
   async sendMessage(content, category = null) {
     if (this.isStreaming || !content.trim()) return;
@@ -454,7 +502,7 @@ const Chat = {
       try {
         const resp = await Api.post('sessions', {
           title: content.substring(0, 50),
-          category: category || 'general',
+          category: this.currentCategory === 'all' ? 'general' : this.currentCategory,
         });
         this.currentSessionId = resp.data.id;
         this._persistSessionId(this.currentSessionId);
@@ -492,7 +540,7 @@ const Chat = {
         body: JSON.stringify({
           session_id: this.currentSessionId,
           content: content,
-          category: category || 'general',
+          category: this.currentCategory === 'all' ? 'general' : this.currentCategory,
         }),
         signal: this.abortController.signal,
       });

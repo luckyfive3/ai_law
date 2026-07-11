@@ -75,7 +75,7 @@ async def register(request: Request,
         logger.warning(f"注册失败: {e}")
         raise HTTPException(
             status_code=400,
-            detail=error_response(errcode.CodeInvalidParam, str(e)),
+            detail=error_response(errcode.CodeInvalidParam, str(e), message=str(e)),
         )
     except Exception as e:
         logger.error(f"注册异常: {e}", exc_info=True)
