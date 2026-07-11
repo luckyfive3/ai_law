@@ -113,6 +113,15 @@ dmypy.json
 /logs/
 *.log
 
+# Playwright 浏览器快照
+.playwright-mcp/
+
+# 测试产物
+test_artifacts/
+
+# 本地数据
+data/
+
 # 进程 PID 文件
 .pids
 

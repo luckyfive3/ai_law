@@ -255,19 +255,20 @@ class SSEChunk(BaseModel):
 
 # ==================== 辅助函数 ====================
 
-def success_response(data: Any = None) -> dict:
+def success_response(data: Any = None, message: str = None) -> dict:
     """
     构建成功响应
 
     Args:
         data: 响应数据
+        message: 自定义成功消息（默认使用 CodeSuccess 对应消息）
 
     Returns:
         成功状态的字典响应
     """
     return {
         "code": CodeSuccess,
-        "message": get_message(CodeSuccess),
+        "message": message or get_message(CodeSuccess),
         "data": data,
     }
 
