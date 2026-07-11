@@ -22,10 +22,9 @@ from database import init_database, close_database, get_database
 
 # ── 服务层 ──
 from services.safety_filter import SafetyFilter
-from services.chat_service import ChatService, ContentSafetyCheck
+from services.chat_service_v2 import ChatService as ChatServiceV2, ContentSafetyCheck
 from services.ragflow_client import RAGFlowClient
-from services.llm_service import LLMService
-from services.context_builder import ContextBuilder
+from services.llm_service_v2 import LLMService as LLMServiceV2
 from services.auth_service import AuthService
 from services.user_service import UserService
 from services.session_service import SessionService
@@ -133,20 +132,18 @@ def _init_services(app: FastAPI) -> None:
     safety_filter = SafetyFilter(enable=settings.safety_enable)
     content_safety_check = ContentSafetyCheck(enable=settings.safety_enable)
     ragflow_client = RAGFlowClient(settings)
-    llm_service = LLMService(settings)
-    context_builder = ContextBuilder(max_history_rounds=3)
+    llm_service = LLMServiceV2(settings)
 
     # ── 数据库相关服务 ──
     auth_service = AuthService(db)
     user_service = UserService(db)
     session_service = SessionService(db)
 
-    # ── 组合服务 ──
-    chat_service = ChatService(
+    # ── 组合服务（v2 升级版：LangChain LCEL RAG 链 + 结构化 Prompt） ──
+    chat_service = ChatServiceV2(
         db=db,
         ragflow_client=ragflow_client,
         llm_service=llm_service,
-        context_builder=context_builder,
         safety_filter=safety_filter,
         content_safety=content_safety_check,
     )
@@ -158,7 +155,6 @@ def _init_services(app: FastAPI) -> None:
         "content_safety_check": content_safety_check,
         "ragflow_client": ragflow_client,
         "llm_service": llm_service,
-        "context_builder": context_builder,
         "auth_service": auth_service,
         "user_service": user_service,
         "session_service": session_service,

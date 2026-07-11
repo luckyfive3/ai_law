@@ -1,11 +1,8 @@
-The user is asking how to add new laws to the knowledge base in the future. I should give them clear, simple instructions.
-添加新法律非常简单，只需要两步：
-
 ## 添加新法律的步骤
 
-### 1. 将法律文件放入 `law` 目录
+### 1. 将法律文件放入 `data/laws` 目录
 
-将你的法律文件（**.docx 格式**）放到 `c:\Users\luck\Desktop\ai_law\ai_law\law\` 文件夹中。
+将你的法律文件（**.docx 格式**）放到 `data/laws/` 文件夹中。
 
 文件命名建议遵循现有格式：
 ```
@@ -13,21 +10,17 @@ The user is asking how to add new laws to the knowledge base in the future. I sh
 ```
 例如：`中华人民共和国个人信息保护法_20210820.docx`
 
-文件内容要求：
-- 法条以 `第X条` 格式标注（如 `第一条`、`第二十五条`），系统会自动识别并提取
-- 第一条的内容会被自动提取为摘要
-
 ### 2. 重新生成数据文件
 
 在终端执行以下命令即可：
 
 ```powershell
-python "c:\Users\luck\.trae-cn\work\6a5046f9f316de00f1a51766\generate_laws_data.py"
+python generate_laws_data.py
 ```
 
 这会自动完成：
-- 扫描 `law/` 下所有 `.docx` 文件
+- 扫描 `data/laws/` 下所有 `.docx` 文件
 - 提取法律名称、颁布日期、分类、所有法条内容
 - 生成新的 `frontend/static/js/laws_data.js`，知识库即时生效
 
-**无需修改任何代码**，分类标签会根据法律名称自动匹配（包含"刑"→刑法，"劳动"→劳动法，"婚姻"→婚姻家庭等）。如果是新的分类关键词，可随时告诉我帮你添加映射规则。
+**无需修改任何代码**，分类标签会根据法律名称自动匹配。

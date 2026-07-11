@@ -5,9 +5,10 @@
 > **团队规模**：6人（纯技术执行岗，无专职PM/PD/UI）  
 > **技术牵头人**：后端开发工程师（兼任）  
 > **技术栈**：Python 3.11 + FastAPI + LangChain + MongoDB 7.0 + RAGFlow v0.15.0  
+> **前端方案**：FastAPI + Jinja2 SSR（纯 JavaScript，无前端构建工具链）  
 > **部署平台**：阿里云 ECS (Ubuntu 22.04 LTS) + Docker Compose  
-> **文档版本**：v2.0  
-> **日期**：2026-07-09
+> **文档版本**：v2.1（根据实际代码更新）  
+> **日期**：2026-07-11
 
 ---
 
@@ -66,59 +67,19 @@
 ## 2. 岗位1：前端开发工程师
 
 > **核心定位**：全量前端开发 + 视觉交互落地，承接原 UI 设计师全部工作  
-> **对接后端**：Python FastAPI 后端（SSE 流式接口），API 代理至 8080 端口
+> **实际技术方案**：FastAPI + Jinja2 SSR（端口 3000），纯 JavaScript + CSS Variables  
+> **对接后端**：通过 httpx 代理转发 API（/api/v1/proxy/* → 后端 8080 端口）
 
-### 2.1 你需要做什么（任务清单）
+### 2.1 你的成果应该有什么
 
-#### 阶段一：视觉规范定义与基础搭建（第1周）
-
-| 编号 | 任务 | 怎么做 | 产出物 |
-|:---:|------|------|------|
-| F-1.1 | 定义产品视觉调性 | 基于法律产品"专业、严谨、可信赖"的定位，确定主色（建议深蓝/藏青 + 暖金点缀）、辅助色、字体层级（标题/正文/提示）、间距体系（4px基准）、圆角规范、阴影层级 | `design-tokens.json` 或 CSS 变量文件，含完整色板、字体栈、间距比例 |
-| F-1.2 | 搭建组件基础规范 | 基于原型9页提取通用组件：按钮（主要/次要/文字）、输入框、对话框气泡（用户/AI）、法条卡片、导航栏、标签、加载指示器等，建立组件目录结构与命名规范 | 组件目录 `src/components/`，每个组件含 Props 类型定义 |
-| F-1.3 | 搭建项目脚手架 | 当前方案为 Python FastAPI + Jinja2 服务端渲染（SSR）；后续可渐进迁移至 React/Vue + TypeScript SPA。配置路由、请求封装、ESLint + Prettier | 可运行的空项目骨架，路由表已定义 |
-
-#### 阶段二：页面高保真开发（第2-4周）
-
-| 编号 | 任务 | 怎么做 | 产出物 |
-|:---:|------|------|------|
-| F-2.1 | P1 首页开发 | 产品标题、简短介绍文案、分类导航卡片（婚姻家庭、劳动纠纷、合同纠纷、交通事故等6-8个常见分类）、"开始咨询"CTA按钮、底部免责声明入口 | `home.html` 页面完成，含分类导航数据驱动渲染 |
-| F-2.2 | P2 AI对话页开发（核心） | 消息列表容器（scroll-view 自动滚底）、用户消息气泡（右侧，浅色）、AI消息气泡（左侧，品牌色边框）；底部固定输入区域：输入框 + 发送按钮 + 字数限制提示；顶部导航栏含返回、标题、新建对话按钮 | `chat.html` + JS 模块完成 |
-| F-2.3 | P3 对话结果展示 | AI回答区域支持 Markdown 渲染（标题、列表、加粗、分段）；法条引用以卡片形式内嵌，包含法条名称、条款号、原文，支持展开/收起；回答末尾风险提示固定模板（红色/橙色警示样式）；一键复制回答全文按钮 | CSS + JS 组件完成 |
-| F-2.4 | P4 历史记录列表 | 按日期分组的会话列表（今天、昨天、更早），每条显示：问题摘要（截断）、时间、状态标签；下拉刷新/上拉加载更多；空状态引导文案 | `history.html` 页面完成 |
-| F-2.5 | P5 历史对话详情 | 与P2页面复用消息渲染组件，但只读模式（无输入框）；顶部显示咨询时间；支持导出为文本 | `history_detail.html` 页面完成 |
-| F-2.6 | P6 个人中心 | 用户头像、昵称展示与编辑；账号绑定信息；隐私设置开关（是否保存历史记录等）；退出登录确认弹窗 | `profile.html` 页面完成 |
-| F-2.7 | P7 登录/注册页 | 用户名+密码登录/注册表单；登录/注册切换；用户协议+隐私政策勾选；表单校验（用户名格式、密码长度、协议必须勾选）；错误提示 | `login.html` 页面完成 |
-| F-2.8 | P8 知识库浏览 | 法条分类树/标签导航；搜索框 + 搜索结果列表；法条详情页（复用法条卡片组件） | `knowledge.html` / `knowledge_detail.html` 完成 |
-| F-2.9 | P9 免责声明/关于 | 静态长文本页面，Markdown 渲染 | `disclaimer.html` 页面完成 |
-
-#### 阶段三：交互体验打磨（第3-5周，与阶段二并行）
-
-| 编号 | 任务 | 怎么做 | 产出物 |
-|:---:|------|------|------|
-| F-3.1 | AI对话流式输出 | 对接后端 SSE（Server-Sent Events），事件类型：`thinking`（检索中）、`chunk`（逐token输出）、`law_ref`（法条引用）、`done`（完成）。逐字/逐 token 渲染 AI 回复 | 流式渲染核心逻辑 `chat.js` 完成 |
-| F-3.2 | 打字机动效 | 在AI回复输出时，显示闪烁光标（`|` 字符 CSS blink 动画），首字出现前显示"正在检索法条…"加载动画（三个跳动圆点） | 动效组件完成 |
-| F-3.3 | 法条卡片交互 | 展开/收起动画（max-height transition），展开时高亮法条编号 | 动效 + 交互逻辑完成 |
-| F-3.4 | 内容复制/导出 | 点击复制按钮，复制AI回答全文（去除格式标记），toast 提示"已复制"；导出功能调用后端接口生成文本文件 | 复制/导出功能完成 |
-| F-3.5 | 边界场景补全 | 为所有数据请求添加：加载态（skeleton屏/loading spinner）、空状态（插画+引导文案）、网络错误态（重试按钮）、接口超时兜底、未登录拦截跳转 | 全局错误处理 + 各页面状态覆盖 |
-| F-3.6 | 响应式适配 | PC端 1200px+ 全功能布局（左侧导航+中间内容）；平板 768-1199px 适配；移动端 <768px 纯对话布局，输入区域吸底 | 所有页面通过响应式测试 |
-
-#### 阶段四：联调与优化（第5-6周）
-
-| 编号 | 任务 | 怎么做 | 产出物 |
-|:---:|------|------|------|
-| F-4.1 | 后端接口联调 | 按照[跨岗位协作接口清单](#9-跨岗位协作接口清单)逐接口对接，验证请求/响应格式、错误码处理、Token传递（前端通过 API 代理转发至后端 8080 端口） | 联调完成，所有接口正常通信 |
-| F-4.2 | 长对话页面性能优化 | 消息超过50条时优化渲染、图片懒加载、Markdown渲染防抖、减少不必要的重渲染 | 100条消息对话页滚动流畅，首屏 < 1.5s |
-| F-4.3 | 打包构建优化 | 静态资源 Gzip 压缩、CDN化、浏览器缓存策略 | 首屏加载 < 2s |
-
-### 2.2 你的成果应该有什么
-
-| 成果类型 | 具体内容 |
-|------|------|
-| **代码仓库** | 完整前端项目代码（Python FastAPI SSR），含 `README.md`（启动方式、目录结构说明） |
-| **Design Tokens** | `tokens.css` 文件，完整的 CSS 变量设计规范 |
-| **页面截图** | 9个页面在 PC / 平板 / 手机三种尺寸下的完整截图 |
-| **联调记录** | 与后端联调问题记录与解决方案文档 |
+| 成果类型 | 具体内容 | 当前状态 |
+|------|------|:---:|
+| **代码仓库** | 完整前端项目代码（FastAPI SSR），含页面路由、模板、静态资源 | ✅ 已完成 |
+| **Design Tokens** | `tokens.css` 文件，完整的 CSS 变量设计规范 | ✅ 已完成 |
+| **页面** | 9个页面已完成（home/chat/history/history_detail/profile/login/knowledge/knowledge_detail/disclaimer）+ 404/500 错误页 | ✅ 已完成 |
+| **SSE 流式对话** | fetch + ReadableStream 实现，逐块渲染 markdown + 中止控制 | ✅ 已完成 |
+| **响应式适配** | PC端/平板/手机三端适配 | 🚧 进行中 |
+| **联调记录** | 与后端联调问题记录与解决方案文档 | 待补充 |
 
 ---
 
@@ -127,60 +88,19 @@
 > **核心定位**：Python FastAPI 业务后端开发 + LangChain AI框架集成 + 全项目统筹协调  
 > **技术栈**：Python 3.11 + FastAPI + LangChain 0.3 + MongoDB 7.0 (Motor) + RAGFlow + DeepSeek
 
-### 3.1 你需要做什么（任务清单）
+### 3.1 你的成果应该有什么
 
-#### 阶段A：项目管理（贯穿全周期）
-
-| 编号 | 任务 | 怎么做 | 产出物 |
-|:---:|------|------|------|
-| P-1.1 | 制定项目交付计划 | 基于v2.0范围梳理里程碑节点（参见[第8节](#8-项目里程碑与交付节奏)），按周拆解各岗位交付物，预留缓冲期 | `项目计划.md`（甘特图或里程碑表） |
-| P-1.2 | 组织日常进度对齐 | 每日站会（15min，同步昨日进展、今日计划、阻塞项）；每周五下午周会（30min，回顾进度、识别风险、调整计划） | 每周会议纪要 + 风险跟踪表 |
-| P-1.3 | 主持需求评审会 | 第1周召集全员逐页评审9页原型，确认功能范围、交互细节、技术可行性，输出需求确认文档 | `需求范围确认书.md`（含裁剪/新增功能清单） |
-| P-1.4 | 协调跨岗位阻塞 | 识别不同岗位间的依赖与阻塞（如前端等接口、算法等RAGFlow知识库就绪、测试等环境），主动推动解决 | 阻塞问题跟踪看板（飞书多维表格/TAPD/Notion） |
-| P-1.5 | 对外法务合规对接 | 联系公司法务团队，同步产品合规要求（内容审核边界、用户协议、隐私政策、免责声明），确认法律风险底线 | 合规要求文档 + 法务审批邮件 |
-| P-1.6 | 需求范围最终裁定 | 当需求范围、技术方案出现分歧时，召集技术评审会讨论，做出最终决策并同步全员 | 决策记录 |
-
-#### 阶段B：后端架构与核心开发（第1-3周）
-
-| 编号 | 任务 | 怎么做 | 产出物 |
-|:---:|------|------|------|
-| B-1.1 | 后端架构设计 | 选用 Python 3.11 + FastAPI + LangChain 框架，设计分层架构（API路由 → Service → MongoDB Repository），确定目录结构、中间件链（JWT鉴权/限流/CORS/内容安全/日志）、统一错误码规范 | `架构设计文档.md` + 项目骨架代码 |
-| B-1.2 | MongoDB 数据模型设计 | 设计以下集合 Schema：users（用户）、sessions（会话）、messages（消息）、law_refs（法条引用）、audit_logs（审计日志）、token_usage（Token消耗）。使用 Motor 异步驱动，为每个集合建立必要索引（唯一约束、联合查询索引、TTL索引） | MongoDB Schema 文档 + 索引脚本 |
-| B-1.3 | 用户鉴权模块 | 用户名+密码注册/登录（bcrypt密码哈希）；JWT Token（Access Token 24h + Refresh Token 7d，HS256签名）签发与刷新；登录态校验中间件；密码加密存储 | Auth 模块 API 完成 |
-| B-1.4 | 会话管理模块 | 创建新会话、获取会话列表（分页、按时间倒序）、获取会话详情（含完整消息+法条引用）、删除会话（软删除，status标记）、清空全部历史 | Session 模块 API 完成 |
-| B-1.5 | 消息管理模块 | 发送用户消息 → LangChain编排调用 RAGFlow 检索 + DeepSeek 大模型 → 存储AI回复 → SSE流式返回；消息历史分页查询；对话导出为文本 | Message 模块 API 完成 |
-| B-1.6 | 内容安全过滤 | 用户输入敏感词过滤（从 `blocked_keywords.txt` 加载关键词，大小写不敏感匹配）；System Prompt 级拒答规则（危害国家安全/教唆犯罪等场景统一话术）；违规内容记录审计日志 | 内容安全中间件完成 |
-
-#### 阶段C：LangChain AI框架集成（第2-3周）
-
-| 编号 | 任务 | 怎么做 | 产出物 |
-|:---:|------|------|------|
-| B-2.1 | LangChain LLM 封装 | 使用 `langchain-openai.ChatOpenAI` 配置 DeepSeek API（base_url + api_key），支持 `generate()` 非流式和 `generate_stream()`（`astream`）流式调用；统一消息格式转换（system/user/assistant） | `llm_service.py` 模块 |
-| B-2.2 | RAGFlow 检索客户端 | 封装 RAGFlow HTTP API 调用（POST `/api/v1/retrieval`，传入 query + dataset_id，返回 Top-K 法条含 law_name/article_num/law_text/relevance）；支持连接超时/服务不可用时返回空列表达降级 | `ragflow_client.py` 模块 |
-| B-2.3 | 上下文拼接逻辑 | 从会话历史中提取最近 N 轮对话（默认3轮）+ RAGFlow 检索召回的法条原文 → 拼接为结构化的 Prompt 上下文（[历史对话] + [相关法律依据] + [用户问题] 三段式） | `context_builder.py` 模块 |
-| B-2.4 | 限流熔断与重试 | 实现 SlowAPI 滑动窗口限流（每用户每分钟最多 N 次消息、每 IP 每分钟最多 M 次请求）；LLM 调用失败指数退避重试（最多3次）；兜底回复模板 | `rate_limiter` + 重试逻辑 |
-| B-2.5 | Token消耗统计 | 记录每次大模型调用的输入/输出 Token 数到 `token_usage` 集合，按用户/按日/按会话维度聚合 | Token 统计模块 |
-| B-2.6 | System Prompt 管理 | 嵌入完整的法律助手 System Prompt（~1500字）：角色定义、回答格式规范（问题分析/法律依据/建议/风险提示四段式）、法条引用规范（《法律名称》第X条第Y款 格式）、禁止行为清单、拒答规则、免责声明模板 | `safety_filter.py` 模块 |
-
-#### 阶段D：全链路联调 + 安全合规（第3-5周）
-
-| 编号 | 任务 | 怎么做 | 产出物 |
-|:---:|------|------|------|
-| B-3.1 | 串联全链路 | 用户提问 → 内容安全检查 → RAGFlow检索相关法条 → ContextBuilder拼接上下文 → LangChain流式调用DeepSeek → SSE事件推送前端（thinking/chunk/law_ref/done）。联调验证全链路延迟 | 全链路联调通过，P99延迟 < 10s |
-| B-3.2 | 接口鉴权 | 所有 API 接口统一 JWT Bearer Token 鉴权（白名单：注册/登录/知识库分类/健康检查）；敏感操作校验用户所有权 | 鉴权中间件上线 |
-| B-3.3 | 用户数据加密 | 用户密码 bcrypt 哈希存储；手机号（如有）SHA256 哈希存储 + 脱敏展示（138****1234 格式）；数据传输全量 HTTPS | 加密/脱敏模块完成 |
-| B-3.4 | 接口文档 | 使用 FastAPI 自动生成的 OpenAPI / Swagger 文档（`/docs`），含请求示例、响应示例、错误码说明 | Swagger 在线文档 |
-
-### 3.2 你的成果应该有什么
-
-| 成果类型 | 具体内容 |
-|------|------|
-| **项目计划与会议纪要** | 里程碑计划、每周会议纪要、风险跟踪表、决策记录 |
-| **架构设计文档** | 系统架构图、技术选型理由（Python/LangChain/MongoDB/RAGFlow）、模块划分说明 |
-| **数据库设计** | MongoDB 集合 Schema + 索引策略文档 |
-| **API文档** | FastAPI Swagger 在线文档 |
-| **后端代码仓库** | 完整 Python 后端项目代码（~26 个 .py 文件），含单元测试（覆盖率 > 60%） |
-| **合规确认文件** | 法务合规要求文档 + 审批确认邮件截图 |
+| 成果类型 | 具体内容 | 当前状态 |
+|------|------|:---:|
+| **项目计划与会议纪要** | 里程碑计划、每周会议纪要、风险跟踪表、决策记录 | ✅ 已完成 |
+| **架构设计文档** | 系统架构图、技术选型说明、模块划分说明 | ✅ 已完成（已按实际代码更新） |
+| **数据库设计** | MongoDB 集合 Schema + 索引策略文档 | ✅ 已完成（database.py） |
+| **API文档** | FastAPI Swagger 在线文档 | ✅ 自动生成 |
+| **后端代码仓库** | 完整 Python 后端项目代码（~30 个 .py 文件） | ✅ 已完成 |
+| **AI 全链路** | 用户提问→RAGFlow检索→LangChain→DeepSeek→SSE 全链路 | ✅ 真实对接（非 mock） |
+| **用户鉴权** | 用户名+密码注册/登录，bcrypt + JWT HS256 | ✅ 已完成 |
+| **单元测试** | pytest 测试用例（覆盖率 > 60%） | ❌ 未开始 |
+| **合规确认文件** | 法务合规要求文档 + 审批确认邮件截图 | ❌ 未开始 |
 
 ---
 
@@ -524,51 +444,69 @@
 |------|:---:|:---:|
 | 项目计划与里程碑 | 后端(技术牵头人) | ✅ 已创建 |
 | 需求范围确认书 | 后端(技术牵头人) | ✅ 已创建 |
-| 架构设计文档 | 后端 | ✅ 已创建（v2.0） |
-| API 接口文档 (Swagger) | 后端 | 🚧 FastAPI 自动生成 |
+| 架构设计文档 | 后端 | ✅ 已创建（v2.1 已按实际代码更新） |
+| API 接口文档 (Swagger) | 后端 | ✅ FastAPI 自动生成 |
 | MongoDB Schema 设计 | 后端 | ✅ 已创建（database.py） |
 | 设计规范文档 (tokens.css) | 前端 | ✅ 已创建 |
-| AI回答规则文档 | 算法(大模型) | 🚧 已嵌入 safety_filter.py |
-| 评估体系文档 | 算法(大模型) | 待创建 |
-| 测试用例集 | 测试 | 待创建 |
+| AI回答规则文档 | 算法(大模型) | ✅ 已嵌入 safety_filter.py |
+| LangChain 深度集成指南 | 后端 | ✅ 已创建 |
+| 评估体系文档 | 算法(大模型) | ❌ 待创建 |
+| 测试用例集 | 测试 | ❌ 待创建 |
 | 环境部署文档 | 运维 | ✅ 已创建（deploy.sh + deploy/） |
-| 容灾方案 | 运维 | 待创建 |
+| 容灾方案 | 运维 | ❌ 待创建 |
 
-### C. 项目文件结构速览
+### C. 项目文件结构速览（实际）
 
 ```
 ai_law/
-├── backend/                    # Python FastAPI 后端
+├── backend/                    # Python FastAPI 后端（端口 8080）
 │   ├── main.py                 # 入口：FastAPI 应用生命周期
-│   ├── config.py / config.yaml # 配置管理（YAML + 环境变量）
-│   ├── database.py             # MongoDB 异步连接 + 索引
+│   ├── config.py / config.yaml # 配置管理（pydantic-settings + YAML + .env）
+│   ├── database.py             # MongoDB 异步连接 + 索引初始化
 │   ├── Dockerfile              # python:3.11-slim
-│   ├── requirements.txt        # Python 依赖
-│   ├── api/                    # API 路由层（auth/user/session/chat/knowledge）
+│   ├── requirements.txt        # Python 依赖（FastAPI/LangChain/Motor 等）
+│   ├── .env                    # 环境变量（含 API Key，勿提交 Git）
+│   ├── blocked_keywords.txt    # 敏感词库（当前为空）
+│   ├── api/                    # API 路由层（auth/chat/knowledge/session/user）
 │   ├── services/               # 业务逻辑层
-│   │   ├── chat_service.py     # 核心 SSE 流式对话引擎
-│   │   ├── ragflow_client.py   # RAGFlow HTTP 客户端
-│   │   ├── llm_service.py      # LangChain ChatOpenAI 封装
-│   │   ├── context_builder.py  # Prompt 上下文拼接
-│   │   └── safety_filter.py    # System Prompt + 安全过滤
+│   │   ├── chat_service_v2.py  # 🟢 当前使用：LangChain 全链路 SSE 对话
+│   │   ├── llm_service_v2.py   # 🟢 LangChain ChatOpenAI 封装（支持 Callback）
+│   │   ├── ragflow_client.py   # RAGFlow SDK 客户端（真实对接）
+│   │   ├── rag_chain.py        # LCEL RAG 对话链
+│   │   ├── langchain_retriever.py # RAGFlow → BaseRetriever 封装
+│   │   ├── langchain_callbacks.py # Token 统计 + 延迟监控回调
+│   │   ├── prompts.py          # ChatPromptTemplate
+│   │   ├── safety_filter.py    # System Prompt + 拒答规则 + 免责声明
+│   │   └── context_builder.py  # v1 上下文拼接（已被 v2 替代）
 │   ├── middleware/              # 中间件（auth/cors/rate_limiter/content_safety/logger）
 │   ├── schemas/                # Pydantic 数据模型（request/response）
-│   └── utils/                  # 工具（errcode/jwt_utils/crypto_utils）
-├── frontend/                   # Python FastAPI SSR 前端
-│   ├── main.py                 # 前端入口（端口 3000）
-│   ├── routes/                 # 页面路由 + API 代理
-│   ├── templates/              # Jinja2 模板（9 个页面）
-│   └── static/                 # CSS + JS 静态资源
+│   ├── utils/                  # 工具（errcode/jwt_utils/crypto_utils）
+│   ├── migrations/             # v1.0 Go 遗留的 PostgreSQL DDL
+│   ├── internal/ cmd/          # Go 代码（v1.0 遗留，不使用）
+│   ├── go.mod                  # Go 模块（v1.0 遗留）
+│   └── config/config.yaml      # Go 服务配置（v1.0 遗留）
+├── frontend/                   # FastAPI + Jinja2 SSR 前端（端口 3000）
+│   ├── main.py                 # 前端入口
+│   ├── routes/                 # pages.py（路由）+ api.py（代理）+ mock_auth.py
+│   ├── templates/              # Jinja2 模板（base.html + 11个页面）
+│   └── static/                 # CSS（4文件）+ JS（5文件）+ img
 ├── deploy/                     # 部署配置
-│   ├── nginx.conf              # Nginx 反代配置
-│   ├── deploy.sh               # 一键部署脚本（阿里云 ECS）
-│   └── upload.ps1              # Windows 上传脚本
-├── docker-compose.yml          # 开发环境（MongoDB+RAGFlow+Backend）
-├── docker-compose.prod.yml     # 生产环境（+Nginx+Frontend）
+│   ├── nginx.conf              # Nginx 反代 + SSL 终止
+│   ├── deploy.sh               # 阿里云 ECS 一键部署
+│   ├── upload.ps1              # Windows 上传脚本
+│   └── certs/                  # 自签名 SSL 证书
+├── scripts/                    # 启动脚本
+│   ├── start.sh                # Linux/Mac 启动
+│   ├── start.bat               # Windows 启动
+│   └── start_mongodb.js        # 本地 MongoDB 实例（mongodb-memory-server）
+├── data/laws/                  # 法律条文文档（.docx）
+├── docs/                       # 项目文档
+├── docker-compose.yml          # 开发环境
+├── docker-compose.prod.yml     # 生产环境（含 Nginx）
 ├── .env.production             # 生产环境变量模板
-├── 架构设计文档.md             # 系统架构设计
-├── 项目计划.md                 # 6 周项目计划
-└── 需求范围确认书.md           # 需求范围确认
+├── requirements.txt            # 根级依赖（引用 backend/ + frontend/）
+├── package.json                # Node.js 依赖（仅 mongodb-memory-server）
+└── Makefile                    # 构建命令
 ```
 
 ---

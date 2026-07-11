@@ -32,18 +32,25 @@ LangChain 是一个**LLM 应用开发框架**，它提供了一套标准化的�
 
 ---
 
-## 二、已创建的文件清单
+## 二、已创建的文件清单（✅ 全部已实现）
 
 ```
 backend/services/
-├── prompts.py                # ① 结构化 Prompt 模板（ChatPromptTemplate）
-├── output_parser.py          # ② Pydantic 结构化输出解析器
-├── langchain_retriever.py    # ③ RAGFlow → LangChain BaseRetriever 封装
-├── rag_chain.py              # ④ LCEL RAG 对话链
-├── langchain_callbacks.py    # ⑤ 全链路监控回调处理器
-├── llm_service_v2.py         # ⑥ 升级版 LLM 服务（集成 Callbacks）
-└── chat_service_v2.py        # ⑦ 升级版聊天服务（集成所有组件）
+├── prompts.py                # ① 结构化 Prompt 模板（ChatPromptTemplate）✅
+├── output_parser.py          # ② Pydantic 结构化输出解析器 ✅
+├── langchain_retriever.py    # ③ RAGFlow → LangChain BaseRetriever 封装 ✅
+├── rag_chain.py              # ④ LCEL RAG 对话链 ✅
+├── langchain_callbacks.py    # ⑤ 全链路监控回调处理器 ✅
+├── llm_service_v2.py         # ⑥ 升级版 LLM 服务（集成 Callbacks）✅ 当前使用
+└── chat_service_v2.py        # ⑦ 升级版聊天服务（集成所有组件）✅ 当前使用
 ```
+
+**当前运行状态：** 
+- 🟢 `chat_service_v2.py` + `llm_service_v2.py` 为当前主用版本
+- 🟢 RAGFlow 检索：真实对接远程服务器（RAGFlow SDK）
+- 🟢 DeepSeek LLM：真实对接（LangChain ChatOpenAI.astream）
+- 🟡 结构化输出（PydanticOutputParser）：已定义但流式链路暂未使用
+- 🟡 敏感词检测：当前默认放行（blocked_keywords.txt 待填充）
 
 ---
 
