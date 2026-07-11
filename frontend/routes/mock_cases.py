@@ -29,7 +29,7 @@ async def list_simple(request: Request):
 @router.post("/api/v1/proxy/cases")
 async def create_case(request: Request):
     body = await request.json()
-    return {"code": 0, "message": "案件创建成功", "data": {"id": "mock_case_new", "title": body.get("title", "新案件"), "case_type": body.get("case_type", "民事"), "status": "待分析", "win_rate": 0, "evidence_uploaded": False, "court_level": body.get("court_level", ""), "parties": [], "created_at": "2025-12-15T10:00:00Z", "updated_at": "2025-12-15T10:00:00Z", "tags": body.get("tags", [])}}
+    return {"code": 0, "message": "案件创建成功", "data": {"id": "mock_case_new", "title": body.get("title", "新案件"), "case_type": body.get("case_type", "民事"), "status": "待分析", "win_rate": 0, "evidence_uploaded": False, "court_level": body.get("court_level", ""), "parties": body.get("parties", []), "created_at": "2025-12-15T10:00:00Z", "updated_at": "2025-12-15T10:00:00Z", "tags": body.get("tags", [])}}
 
 
 # ── 案件详情 ──

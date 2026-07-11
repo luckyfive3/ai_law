@@ -273,7 +273,7 @@ def success_response(data: Any = None, message: str = None) -> dict:
     }
 
 
-def error_response(code: int, data: Any = None) -> dict:
+def error_response(code: int, data: Any = None, message: str = None) -> dict:
     """
     构建错误响应
 
@@ -286,7 +286,7 @@ def error_response(code: int, data: Any = None) -> dict:
     """
     return {
         "code": code,
-        "message": get_message(code),
+        "message": message or get_message(code),
         "data": data,
     }
 

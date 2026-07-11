@@ -1127,9 +1127,13 @@ async def upload_case_file(
         )
         await case_service.create_document(user_id, case_id, doc_req)
 
-        # 通过服务层更新证据标志
-        from schemas.case_schemas import CaseUpdateRequest
-        await case_service.update_case(user_id, case_id, CaseUpdateRequest())
+        # 更新案件证据上传标志
+        oid = case_service._safe_oid(case_id)
+        if oid:
+            await case_service.db.cases.update_one(
+                {"_id": oid, "user_id": user_id},
+                {"$set": {"evidence_uploaded": True, "updated_at": case_service._now()}},
+            )
 
         logger.info(f"文件上传成功: case_id={case_id}, filename={file.filename}")
 

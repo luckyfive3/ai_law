@@ -561,7 +561,7 @@ const CaseDetailApp = {
           const ext = (doc.name||'').split('.').pop()?.toLowerCase()||'';
           const icons = { pdf:'📕',doc:'📘',docx:'📘',xls:'📗',xlsx:'📗',png:'🖼️',jpg:'🖼️',jpeg:'🖼️' };
           html += '<div class="document-item"><div class="doc-icon">'+(icons[ext]||'📄')+'</div><div class="doc-info"><div class="doc-name">'+escapeHtml(doc.name||'未命名文档')+'</div><div class="doc-meta">'+escapeHtml(formatTime(doc.created_at)||'')+'</div></div>'
-            +'<div class="doc-actions"><button onclick="CaseDetailApp._downloadDoc(\''+(doc.file_url||'').replace(/'/g,"\\'")+'\')">下载</button><button onclick="CaseDetailApp._deleteDoc(\''+escapeHtml(doc.id)+'\')">删除</button></div></div>';
+            +'<div class="doc-actions"><button data-doc-url="' + escapeHtml(doc.file_url||'') + '" onclick="CaseDetailApp._downloadByData(this)">下载</button><button onclick="CaseDetailApp._deleteDoc(\''+escapeHtml(doc.id)+'\')">删除</button></div></div>';
         });
       }
       html += '</div>'; container.innerHTML = html; container.dataset.loaded = 'true';
@@ -599,6 +599,7 @@ const CaseDetailApp = {
   },
 
   _downloadDoc(url) { if (url) window.open(url, '_blank'); },
+  _downloadByData(el) { const url = el?.getAttribute('data-doc-url'); if (url) window.open(url, '_blank'); },
 
   async _deleteDoc(docId) {
     showModal({ title:'删除文档', message:'确定删除该文档吗？', confirmText:'删除', danger:true, onConfirm: async () => {

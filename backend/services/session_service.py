@@ -223,9 +223,9 @@ class SessionService:
                 )
                 async for ref in ref_cursor:
                     refs.append({
-                        "name": ref.get("law_name", ""),
-                        "article": ref.get("article_num", ""),
-                        "text": ref.get("law_text", ""),
+                        "name": ref.get("name", "") or ref.get("law_name", ""),
+                        "article": ref.get("article", "") or ref.get("article_num", ""),
+                        "text": ref.get("text", "") or ref.get("law_text", ""),
                         "source": ref.get("source", ""),
                         "chunk_id": ref.get("chunk_id", ""),
                         "relevance": ref.get("relevance", 0),

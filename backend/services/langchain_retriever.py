@@ -33,11 +33,7 @@ class RAGFlowRetriever(BaseRetriever):
     class Config:
         arbitrary_types_allowed = True
 
-    def _get_relevant_documents(
-        self,
-        query: str,
-        *,
-        run_manager: CallbackManagerForRetrieverRun | None = None,
+    def _get_relevant_documents(self, query: str, *, dataset_id: str = None, run_manager: CallbackManagerForRetrieverRun | None = None,
     ) -> List[Document]:
         """
         同步检索（由 BaseRetriever 框架调用）
@@ -48,7 +44,7 @@ class RAGFlowRetriever(BaseRetriever):
         import asyncio
 
         async def _retrieve():
-            return await self.ragflow_client.search(query=query, top_k=self.top_k)
+            return await self.ragflow_client.search(query=query, top_k=self.top_k, dataset_id=dataset_id)
 
         try:
             # 如果在事件循环中，创建 future；否则 run_until_complete
@@ -66,14 +62,10 @@ class RAGFlowRetriever(BaseRetriever):
 
         return self._raw_to_documents(raw_results)
 
-    async def _aget_relevant_documents(
-        self,
-        query: str,
-        *,
-        run_manager: CallbackManagerForRetrieverRun | None = None,
+    async def _aget_relevant_documents(self, query: str, *, dataset_id: str = None, run_manager: CallbackManagerForRetrieverRun | None = None,
     ) -> List[Document]:
         """异步检索"""
-        raw_results = await self.ragflow_client.search(query=query, top_k=self.top_k)
+        raw_results = await self.ragflow_client.search(query=query, top_k=self.top_k, dataset_id=dataset_id)
         return self._raw_to_documents(raw_results)
 
     def _raw_to_documents(self, raw_results: List[dict]) -> List[Document]:

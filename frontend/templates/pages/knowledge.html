@@ -20,22 +20,39 @@
       placeholder="搜索法律法规名称或法条关键词，如"劳动合同"、"正当防卫"…"
       autocomplete="off"
     />
-    <!-- 清除按钮 -->
     <button id="searchClear" class="search-clear" style="display:none;" title="清除搜索">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
   </div>
 
-  <!-- 分类选项卡 -->
-  <div class="knowledge-tabs" id="knowledgeTabs">
-    <button class="knowledge-tab active" data-category="all">全部</button>
-    <button class="knowledge-tab" data-category="constitution">宪法</button>
-    <button class="knowledge-tab" data-category="civil">民法</button>
-    <button class="knowledge-tab" data-category="criminal">刑法</button>
-    <button class="knowledge-tab" data-category="labor">劳动法</button>
-    <button class="knowledge-tab" data-category="marriage">婚姻家庭</button>
-    <button class="knowledge-tab" data-category="traffic">交通法</button>
-    <button class="knowledge-tab" data-category="consumer">消费者权益</button>
+  <!-- 上行：按法律领域筛选 -->
+  <div style="margin-bottom: var(--space-4);">
+    <p style="font-size: var(--text-xs); color: var(--color-gray-500); margin-bottom: var(--space-2);">按法律领域</p>
+    <div class="knowledge-tabs" id="knowledgeTabs">
+      <button class="knowledge-tab active" data-category="all">全部</button>
+      <button class="knowledge-tab" data-category="constitution">宪法</button>
+      <button class="knowledge-tab" data-category="civil">民法</button>
+      <button class="knowledge-tab" data-category="criminal">刑法</button>
+      <button class="knowledge-tab" data-category="labor">劳动法</button>
+      <button class="knowledge-tab" data-category="marriage">婚姻家庭</button>
+      <button class="knowledge-tab" data-category="traffic">交通法</button>
+      <button class="knowledge-tab" data-category="consumer">消费者权益</button>
+      <button class="knowledge-tab" data-category="housing">房产法</button>
+    </div>
+  </div>
+
+  <!-- 下行：按知识库模块筛选 -->
+  <div style="margin-bottom: var(--space-4);">
+    <p style="font-size: var(--text-xs); color: var(--color-gray-500); margin-bottom: var(--space-2);">按知识库模块</p>
+    <div class="knowledge-tabs" id="moduleTabs">
+      <button class="knowledge-tab" data-module="all">综合</button>
+      <button class="knowledge-tab" data-module="marriage">婚姻家庭</button>
+      <button class="knowledge-tab" data-module="labor">劳动纠纷</button>
+      <button class="knowledge-tab" data-module="contract">合同纠纷</button>
+      <button class="knowledge-tab" data-module="traffic">交通事故</button>
+      <button class="knowledge-tab" data-module="housing">房产纠纷</button>
+      <button class="knowledge-tab" data-module="consumer">消费维权</button>
+    </div>
   </div>
 
   <!-- 搜索统计 -->
@@ -48,6 +65,9 @@
       <p style="font-size:var(--text-sm);color:var(--color-gray-500);margin-top:var(--space-3);">加载中…</p>
     </div>
   </div>
+
+  <!-- 分页控件 -->
+  <div id="knowledgePagination" class="pagination-bar" style="display:none;"></div>
 
   <!-- 空状态 -->
   <div id="knowledgeEmpty" class="empty-state" style="display:none;">
@@ -68,9 +88,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const emptyEl = document.getElementById('knowledgeEmpty');
   const statsEl = document.getElementById('searchStats');
 
-  let currentCategory = 'all';
+  let currentFilterType = 'category';
+  let currentFilterValue = 'all';
+  let currentPage = 1;
+  let totalPages = 1;
+  let totalCount = 0;
   let searchTimeout = null;
-  let allDocuments = [];    // 从 RAGFlow 获取的全部文档
   let isLoading = true;
 
   // ── 高亮关键词 ──
@@ -81,31 +104,42 @@ document.addEventListener('DOMContentLoaded', () => {
     return escapeHtml(text).replace(regex, '<mark class="highlight">$1</mark>');
   }
 
-  // ── 从后端 API 加载 RAGFlow 文档列表 ──
-  async function loadDocuments() {
-    try {
-      const resp = await Api.get('knowledge/documents');
-      allDocuments = (resp.data || []).filter(d => d.status === '1');
-      console.log(`从 RAGFlow 加载了 ${allDocuments.length} 个文档`);
-    } catch (e) {
-      console.error('加载文档列表失败:', e);
-      allDocuments = [];
-    }
-    isLoading = false;
-    filterAndRender();
+  function showLoading() {
+    listEl.innerHTML = '<div style="text-align:center;padding:var(--space-12);"><div class="spinner"></div></div>';
   }
 
-  // ── 浏览模式：显示法律列表 ──
-  function renderBrowseMode(docs) {
-    statsEl.style.display = 'none';
-    listEl.innerHTML = '';
-
-    if (docs.length === 0) {
+  // ── 加载文档列表 ──
+  async function loadDocuments() {
+    isLoading = true;
+    showLoading();
+    try {
+      const resp = await Api.get(
+        `knowledge/documents?filter_type=${currentFilterType}&filter_value=${currentFilterValue}&page=${currentPage}&page_size=100`
+      );
+      const data = resp.data || {};
+      const items = data.items || (Array.isArray(resp.data) ? resp.data : []);
+      totalCount = data.total || items.length;
+      totalPages = Math.ceil(totalCount / 100) || 1;
+      emptyEl.style.display = 'none';
+      statsEl.style.display = 'block';
+      statsEl.textContent = '共 ' + totalCount + ' 份文档，第 ' + currentPage + '/' + totalPages + ' 页';
+      renderBrowseMode(items);
+      renderPagination();
+    } catch (e) {
+      console.error('加载文档列表失败:', e);
+      listEl.innerHTML = '';
       emptyEl.style.display = 'flex';
-      return;
+      statsEl.style.display = 'none';
     }
-    emptyEl.style.display = 'none';
+    isLoading = false;
+  }
 
+  // ── 浏览模式 ──
+  function renderBrowseMode(docs) {
+    statsEl.style.display = 'block';
+    listEl.innerHTML = '';
+    if (docs.length === 0) { emptyEl.style.display = 'flex'; return; }
+    emptyEl.style.display = 'none';
     docs.forEach(doc => {
       const item = document.createElement('div');
       item.className = 'law-list-item';
@@ -113,72 +147,69 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="name">${escapeHtml(doc.name)}</div>
         <div class="info">${escapeHtml(doc.year || '日期未知')} · ${doc.chunk_count} 个知识块 · ${doc.token_count} tokens</div>
       `;
-      item.addEventListener('click', () => {
-        window.location.href = `/knowledge/${doc.id}`;
-      });
+      item.addEventListener('click', () => { window.location.href = '/knowledge/' + doc.id; });
       listEl.appendChild(item);
     });
   }
 
-  // ── 搜索模式：调用后端 RAGFlow 检索 ──
+  // ── 分页控件 ──
+  function renderPagination() {
+    const pg = document.getElementById('knowledgePagination');
+    if (!pg || totalPages <= 1) { if (pg) pg.style.display = 'none'; return; }
+    pg.style.display = 'flex';
+    let html = '';
+    html += '<button class="page-btn"' + (currentPage <= 1 ? ' disabled' : '') + ' data-page="' + (currentPage - 1) + '">&laquo; 上一页</button>';
+    const s = Math.max(1, currentPage - 2), e = Math.min(totalPages, currentPage + 2);
+    if (s > 1) html += '<button class="page-btn" data-page="1">1</button><span class="page-ellipsis">…</span>';
+    for (let i = s; i <= e; i++) html += '<button class="page-btn' + (i === currentPage ? ' active' : '') + '" data-page="' + i + '">' + i + '</button>';
+    if (e < totalPages) html += '<span class="page-ellipsis">…</span><button class="page-btn" data-page="' + totalPages + '">' + totalPages + '</button>';
+    html += '<button class="page-btn"' + (currentPage >= totalPages ? ' disabled' : '') + ' data-page="' + (currentPage + 1) + '">下一页 &raquo;</button>';
+    pg.innerHTML = html;
+    pg.querySelectorAll('.page-btn:not([disabled])').forEach(btn => {
+      btn.addEventListener('click', () => { currentPage = parseInt(btn.dataset.page); loadDocuments(); window.scrollTo({top:0,behavior:'smooth'}); });
+    });
+  }
+
+  // ── 搜索模式 ──
   async function renderSearchMode(query, category) {
     listEl.innerHTML = '<div style="text-align:center;padding:var(--space-8);"><div class="spinner"></div></div>';
     emptyEl.style.display = 'none';
     statsEl.style.display = 'block';
-
     try {
-      const resp = await Api.get(`knowledge/search?keyword=${encodeURIComponent(query)}&page=1&page_size=20`);
+      const resp = await Api.get('knowledge/search?keyword=' + encodeURIComponent(query) + '&page=1&page_size=20');
       const data = resp.data || {};
       const items = data.items || [];
-
       listEl.innerHTML = '';
-
       if (items.length === 0) {
         emptyEl.style.display = 'flex';
-        statsEl.textContent = `未找到与"${escapeHtml(query)}"相关的法条`;
+        statsEl.textContent = '未找到与"' + escapeHtml(query) + '"相关的法条';
         return;
       }
-
-      statsEl.textContent = `搜索"${escapeHtml(query)}"，找到 ${data.count || items.length} 条结果`;
-
-      // 按法律名称分组
+      statsEl.textContent = '搜索"' + escapeHtml(query) + '"，找到 ' + (data.count || items.length) + ' 条结果';
       const grouped = {};
       items.forEach(item => {
         const lawName = item.name || '未知法律';
-        if (!grouped[lawName]) {
-          grouped[lawName] = { name: lawName, source: item.source || '', matches: [] };
-        }
+        if (!grouped[lawName]) { grouped[lawName] = { name: lawName, source: item.source || '', matches: [] }; }
         grouped[lawName].matches.push(item);
       });
-
       Object.values(grouped).forEach(result => {
         const group = document.createElement('div');
         group.className = 'search-result-group';
-
         const header = document.createElement('div');
         header.className = 'search-result-group-header';
-        header.innerHTML = `
-          <span class="law-name">${highlightText(result.name, query)}</span>
-          <span class="match-count">${result.matches.length} 条匹配</span>
-        `;
+        header.innerHTML = '<span class="law-name">' + highlightText(result.name, query) + '</span><span class="match-count">' + result.matches.length + ' 条匹配</span>';
         group.appendChild(header);
-
         result.matches.forEach(match => {
           const item = document.createElement('div');
           item.className = 'search-result-item';
           const content = match.content || '';
           const snippet = content.length > 200 ? content.slice(0, 200) + '…' : content;
-          const articleNum = match.article_num ? `第${match.article_num}条` : '';
-          item.innerHTML = `
-            ${articleNum ? `<div class="article-num">${escapeHtml(articleNum)}</div>` : ''}
-            <div class="article-snippet">${highlightText(snippet, query)}</div>
-          `;
+          const articleNum = match.article_num ? '第' + match.article_num + '条' : '';
+          item.innerHTML = (articleNum ? '<div class="article-num">' + escapeHtml(articleNum) + '</div>' : '') + '<div class="article-snippet">' + highlightText(snippet, query) + '</div>';
           group.appendChild(item);
         });
-
         listEl.appendChild(group);
       });
-
     } catch (e) {
       listEl.innerHTML = '';
       emptyEl.style.display = 'flex';
@@ -186,54 +217,60 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ── 主过滤/渲染入口 ──
+  // ── 主过滤入口 ──
   async function filterAndRender() {
     const query = searchInput.value.trim().toLowerCase();
     searchClear.style.display = query ? 'block' : 'none';
-
     if (isLoading) return;
-
     if (query) {
-      await renderSearchMode(query, currentCategory);
+      await renderSearchMode(query);
     } else {
-      let filtered = allDocuments;
-      if (currentCategory !== 'all') {
-        filtered = filtered.filter(d => d.category === currentCategory);
-      }
-      renderBrowseMode(filtered);
+      currentPage = 1;
+      await loadDocuments();
     }
   }
 
   // ── 事件监听 ──
-  searchInput.addEventListener('input', () => {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(filterAndRender, 300);
-  });
+  searchInput.addEventListener('input', () => { clearTimeout(searchTimeout); searchTimeout = setTimeout(filterAndRender, 300); });
+  searchClear.addEventListener('click', () => { searchInput.value = ''; searchClear.style.display = 'none'; filterAndRender(); searchInput.focus(); });
+  searchInput.addEventListener('keydown', (e) => { if (e.key === 'Escape') { searchInput.value = ''; filterAndRender(); } });
 
-  searchClear.addEventListener('click', () => {
-    searchInput.value = '';
-    searchClear.style.display = 'none';
-    filterAndRender();
-    searchInput.focus();
-  });
-
+  // 上行：按法律领域筛选
   tabs.addEventListener('click', (e) => {
     const tab = e.target.closest('.knowledge-tab');
     if (!tab) return;
     tabs.querySelectorAll('.knowledge-tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
-    currentCategory = tab.dataset.category;
+    document.querySelectorAll('#moduleTabs .knowledge-tab').forEach(t => t.classList.remove('active'));
+    currentFilterType = 'category';
+    currentFilterValue = tab.dataset.category;
+    currentPage = 1;
     filterAndRender();
   });
 
-  searchInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      searchInput.value = '';
-      filterAndRender();
+  // 下行：按知识库模块筛选
+  document.getElementById('moduleTabs').addEventListener('click', (e) => {
+    const tab = e.target.closest('.knowledge-tab');
+    if (!tab) return;
+    document.querySelectorAll('#moduleTabs .knowledge-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    tabs.querySelectorAll('.knowledge-tab').forEach(t => t.classList.remove('active'));
+    if (tab.dataset.module === 'all') {
+      tabs.querySelector('[data-category="all"]').classList.add('active');
+      currentFilterType = 'category';
+      currentFilterValue = 'all';
+    } else {
+      currentFilterType = 'module';
+      currentFilterValue = tab.dataset.module;
     }
+    currentPage = 1;
+    filterAndRender();
   });
 
   // 初始加载
+  currentFilterType = 'category';
+  currentFilterValue = 'all';
+  currentPage = 1;
   loadDocuments();
 });
 </script>

@@ -45,6 +45,24 @@ class ChatService:
         6. 注入用户画像到对话上下文，实现个性化回答
     """
 
+    CATEGORY_DATASET_MAP = {
+        "marriage": "350004b87cdf11f199b8b7e53ff0faa6",
+        "labor": "53fdb5127ce011f199b8b7e53ff0faa6",
+        "contract": "7e7270a87ce011f199b8b7e53ff0faa6",
+        "traffic": "9734a8187ce011f199b8b7e53ff0faa6",
+        "housing": "be93c2947ce111f199b8b7e53ff0faa6",
+        "consumer": "fc5695a27ce111f199b8b7e53ff0faa6",
+    }
+
+    CATEGORY_NAME_MAP = {
+        "marriage": "婚姻家庭",
+        "labor": "劳动纠纷",
+        "contract": "合同纠纷",
+        "traffic": "交通事故",
+        "housing": "房产纠纷",
+        "consumer": "消费维权",
+    }
+
     def __init__(
         self,
         db: AsyncIOMotorDatabase,
@@ -174,8 +192,6 @@ class ChatService:
             yield {"status": "generating", "content": fallback, "index": 0}
 
         # 9. 附加免责声明
-        full_content = self.safety_filter.append_disclaimer(full_content) if full_content else ""
-
         # 10. 保存 AI 消息
         now = datetime.now(timezone.utc).isoformat()
         ai_msg_result = await self.db.messages.insert_one({
@@ -200,7 +216,7 @@ class ChatService:
                 "input": stats["total_input_tokens"],
                 "output": stats["total_output_tokens"],
             },
-            "laws": self._extract_law_refs(legal_context),
+            "laws": [],  # 方法 A 中 LLM 链内检索，法条引用通过回调获取
             "stats": stats,
         }
 
@@ -256,8 +272,52 @@ class ChatService:
             pass
 
         # 4. 检索法条 → 使用 Retriever 转为 LangChain Document
-        law_docs = await self._retriever._aget_relevant_documents(query)
+        dataset_id = self.CATEGORY_DATASET_MAP.get(category) if category else None
+        if dataset_id:
+            law_docs = await self._retriever._aget_relevant_documents(query, dataset_id=dataset_id)
+        else:
+            # 综合模式：检索全部7个知识库
+            all_docs = []
+            for ds_id in set(self.CATEGORY_DATASET_MAP.values()):
+                docs = await self._retriever._aget_relevant_documents(query, dataset_id=ds_id)
+                all_docs.extend(docs)
+            # 按相关度去重排序，取 top_k
+            seen = set()
+            law_docs = []
+            for doc in sorted(all_docs, key=lambda d: d.metadata.get('relevance', 0), reverse=True):
+                key = doc.page_content[:80]
+                if key not in seen:
+                    seen.add(key)
+                    law_docs.append(doc)
+            law_docs = law_docs[:5]
         legal_context = format_docs(law_docs)
+
+        # 4.1 获取知识库领域名称
+        category_name = self.CATEGORY_NAME_MAP.get(category, "综合") if category else "综合"
+
+        # 4.2 特定模块下未检索到法条 → 轻量拒答
+        if category and category in self.CATEGORY_DATASET_MAP and not law_docs:
+            refuse_msg = f'我在"{category_name}"知识库中没有找到与您问题相关的法律文件。建议您切换到综合模式提问，或选择对应领域的知识库。'
+            now = datetime.now(timezone.utc).isoformat()
+            ai_msg_result = await self.db.messages.insert_one({
+                "session_id": session_id,
+                "role": "assistant",
+                "content": refuse_msg,
+                "content_type": "markdown",
+                "tokens": len(refuse_msg),
+                "status": 1,
+                "created_at": now,
+            })
+            ai_msg_id = str(ai_msg_result.inserted_id)
+            yield {"status": "generating", "content": refuse_msg, "index": 0}
+            yield {
+                "done": True,
+                "status": "done",
+                "message_id": ai_msg_id,
+                "laws": [],
+                "tokens": {"input": len(query), "output": len(refuse_msg)},
+            }
+            return
 
         # 4.5 获取用户画像，增强 legal_context
         personalized_hint = ""
@@ -276,6 +336,7 @@ class ChatService:
 
         # 6. 使用 ChatPromptTemplate 构建消息列表
         messages = self._prompt.invoke({
+            "category_name": category_name,
             "legal_context": legal_context,
             "history": history_msgs,
             "question": query,
@@ -304,8 +365,6 @@ class ChatService:
             yield {"status": "generating", "content": fallback, "index": 0}
 
         # 8. 后处理
-        full_content = self.safety_filter.append_disclaimer(full_content) if full_content else ""
-
         # 9. 保存 AI 消息
         now = datetime.now(timezone.utc).isoformat()
         ai_msg_result = await self.db.messages.insert_one({
@@ -326,9 +385,9 @@ class ChatService:
             for doc in law_docs:
                 meta = doc.metadata
                 law_ref = {
-                    "name": meta.get("law_name", ""),
-                    "article": meta.get("article_num", ""),
-                    "text": doc.page_content,
+                    "name": meta.get("law_name", "") or meta.get("name", ""),
+                    "article": meta.get("article_num", "") or meta.get("article", ""),
+                    "text": doc.page_content or meta.get("text", ""),
                     "source": meta.get("source", ""),
                     "chunk_id": meta.get("chunk_id", ""),
                     "relevance": meta.get("relevance", 0),
@@ -463,9 +522,9 @@ class ChatService:
                 refs = []
                 async for ref in self.db.law_refs.find({"message_id": str(msg["_id"])}):
                     refs.append({
-                        "name": ref.get("law_name", ""),
-                        "article": ref.get("article_num", ""),
-                        "text": ref.get("law_text", ""),
+                        "name": ref.get("name", "") or ref.get("law_name", ""),
+                        "article": ref.get("article", "") or ref.get("article_num", ""),
+                        "text": ref.get("text", "") or ref.get("law_text", ""),
                         "source": ref.get("source", ""),
                         "chunk_id": ref.get("chunk_id", ""),
                         "relevance": ref.get("relevance", 0),
