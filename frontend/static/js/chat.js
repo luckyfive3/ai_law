@@ -15,6 +15,7 @@ const Chat = {
 
   init(sessionId) {
     this.currentSessionId = sessionId || null;
+    this.linkedCaseId = null;  // 关联的案件ID
 
     // 未登录 → 跳转登录页
     if (!Auth.isLoggedIn()) {
@@ -35,11 +36,84 @@ const Chat = {
     this._setupInputAutoResize();
     this._loadConversationList();
     this._bindMobileSidebar();
+    this._initCaseSelector();  // 加载案件选择器
 
     // 如果带有 session_id，加载该会话的消息
     if (this.currentSessionId) {
       this._persistSessionId(this.currentSessionId);
       this._loadInitialSession(this.currentSessionId);
+    }
+  },
+
+  // ── 初始化案件关联选择器 ──
+  async _initCaseSelector() {
+    const caseSel = document.getElementById('caseSelector');
+    const selectEl = document.getElementById('linkedCaseSelect');
+    const linkBtn = document.getElementById('linkCaseBtn');
+    const unlinkBtn = document.getElementById('unlinkCaseBtn');
+    if (!caseSel || !selectEl) return;
+
+    // 加载用户案件列表
+    try {
+      const resp = await Api.get('cases/list/simple');
+      const cases = resp.data || [];
+      if (cases.length === 0) {
+        // 没有案件时也显示选择器，但提示用户创建
+        selectEl.innerHTML = '<option value="">不关联案件（通用法律咨询）</option><option disabled>—— 暂无案件，请先在案件管理创建 ——</option>';
+        caseSel.style.display = '';
+        return;
+      }
+
+      // 填充案件下拉
+      selectEl.innerHTML = '<option value="">不关联案件（通用法律咨询）</option>' +
+        cases.map(c => '<option value="' + escapeHtml(c.id) + '">📋 ' + escapeHtml(c.title) + '</option>').join('');
+      caseSel.style.display = '';
+
+      // 下拉选择事件
+      selectEl.addEventListener('change', () => {
+        const id = selectEl.value;
+        if (id) {
+          this.linkedCaseId = id;
+          linkBtn.style.display = 'inline-block';
+          unlinkBtn.style.display = 'inline-block';
+          // 从 URL 恢复（如果页面带 caseLink 参数）
+        } else {
+          this.linkedCaseId = null;
+          linkBtn.style.display = 'none';
+          unlinkBtn.style.display = 'none';
+        }
+      });
+
+      // 查看案件按钮
+      linkBtn.addEventListener('click', () => {
+        if (this.linkedCaseId) {
+          window.open('/cases/' + this.linkedCaseId, '_blank');
+        }
+      });
+
+      // 取消关联按钮
+      unlinkBtn.addEventListener('click', () => {
+        this.linkedCaseId = null;
+        selectEl.value = '';
+        linkBtn.style.display = 'none';
+        unlinkBtn.style.display = 'none';
+        Toast.info('已取消案件关联');
+      });
+
+      // 检查 URL 参数是否带了 caseLink
+      const urlParams = new URLSearchParams(window.location.search);
+      const linkedCaseId = urlParams.get('caseLink');
+      if (linkedCaseId) {
+        selectEl.value = linkedCaseId;
+        // change 事件会自动设置 this.linkedCaseId 和按钮显示
+        const caseItem = cases.find(c => c.id === linkedCaseId);
+        if (caseItem) {
+          Toast.info('已关联案件：' + caseItem.title);
+        }
+      }
+    } catch (e) {
+      // 静默失败，不影响聊天功能
+      caseSel.style.display = 'none';
     }
   },
 
@@ -493,6 +567,7 @@ const Chat = {
           session_id: this.currentSessionId,
           content: content,
           category: category || 'general',
+          case_id: this.linkedCaseId || null,
         }),
         signal: this.abortController.signal,
       });

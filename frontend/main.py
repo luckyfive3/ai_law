@@ -12,6 +12,7 @@ import uvicorn
 from routes.pages import router as pages_router
 from routes.api import router as api_router
 from routes.mock_auth import router as mock_auth_router
+from routes.mock_cases import router as mock_cases_router
 
 app = FastAPI(title="AI法律助手", version="1.0.0", docs_url=None, redoc_url=None)
 
@@ -26,6 +27,8 @@ app.include_router(pages_router)
 # 本地模拟认证路由（开发环境使用，无需后端）
 # 注：后端已启动时注释掉，让代理转发到后端处理
 # app.include_router(mock_auth_router)
+# 本地模拟案件 API（开发测试使用）
+# app.include_router(mock_cases_router)
 
 # API 代理路由 —— 将 /api/v1/proxy/* 转发到后端 Python 服务
 app.include_router(api_router, prefix="/api/v1/proxy")

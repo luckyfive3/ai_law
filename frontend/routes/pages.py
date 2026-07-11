@@ -82,3 +82,20 @@ async def disclaimer_page(request: Request):
     return templates.TemplateResponse(
         request, "pages/disclaimer.html", {"page": "disclaimer"}
     )
+
+
+# ── P10 案件管理列表 ──
+@router.get("/cases")
+async def cases_page(request: Request):
+    return templates.TemplateResponse(
+        request, "pages/cases.html", {"page": "cases"}
+    )
+
+
+# ── P10 案件详情 ──
+@router.get("/cases/{case_id}")
+async def case_detail_page(request: Request, case_id: str):
+    return templates.TemplateResponse(
+        request, "pages/case_detail.html",
+        {"page": "cases", "case_id": case_id},
+    )

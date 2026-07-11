@@ -46,7 +46,7 @@ const Auth = {
     // 如果当前在需要登录的页面，跳转到首页
     const protectedPages = ['/profile', '/history'];
     const currentPath = window.location.pathname;
-    if (protectedPages.includes(currentPath)) {
+    if (protectedPages.includes(currentPath) || currentPath.startsWith('/cases')) {
       window.location.href = '/';
     }
   },

@@ -92,10 +92,12 @@ class ChatStreamRequest(BaseModel):
         session_id: 会话 ID
         content: 用户输入内容，最大2000字符
         category: 法律分类（可选）
+        case_id: 关联案件ID（可选）
     """
     session_id: str = Field(..., description="会话 ID")
     content: str = Field(..., max_length=2000, description="用户输入内容")
     category: Optional[str] = Field(default=None, description="法律分类")
+    case_id: Optional[str] = Field(default=None, description="关联案件ID")
 
 
 # ==================== 用户相关请求 ====================

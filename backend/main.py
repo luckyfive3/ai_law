@@ -29,6 +29,7 @@ from services.auth_service import AuthService
 from services.user_service import UserService
 from services.session_service import SessionService
 from services.knowledge_service import KnowledgeService
+from services.case_service import CaseService
 
 # ── 中间件 ──
 from middleware.logger import RequestLoggerMiddleware
@@ -43,6 +44,7 @@ from api.user import router as user_router
 from api.session import router as session_router
 from api.chat import router as chat_router
 from api.knowledge import router as knowledge_router
+from api.cases import router as case_router
 
 # ── 工具层 ──
 from utils import errcode
@@ -139,10 +141,6 @@ def _init_services(app: FastAPI) -> None:
     user_service = UserService(db)
     session_service = SessionService(db)
 
-    # ── 摘要与用户画像服务 ──
-    from services.summary_service import SummaryService
-    summary_service = SummaryService(db=db, llm_service=llm_service)
-
     # ── 组合服务（v2 升级版：LangChain LCEL RAG 链 + 结构化 Prompt） ──
     chat_service = ChatServiceV2(
         db=db,
@@ -150,9 +148,11 @@ def _init_services(app: FastAPI) -> None:
         llm_service=llm_service,
         safety_filter=safety_filter,
         content_safety=content_safety_check,
-        summary_service=summary_service,
     )
     knowledge_service = KnowledgeService(ragflow_client=ragflow_client)
+
+    # ── 案件管理服务 ──
+    case_service = CaseService(db)
 
     # ── 存入 app.state.services ──
     app.state.services = {
@@ -163,9 +163,9 @@ def _init_services(app: FastAPI) -> None:
         "auth_service": auth_service,
         "user_service": user_service,
         "session_service": session_service,
-        "summary_service": summary_service,
         "chat_service": chat_service,
         "knowledge_service": knowledge_service,
+        "case_service": case_service,
     }
 
     logger.info(f"已初始化 {len(app.state.services)} 个服务实例")
@@ -189,6 +189,13 @@ app = FastAPI(
 
 # 将配置存入应用状态（供服务初始化前访问）
 app.state.settings = settings
+
+# ── 静态文件挂载（上传文件视图） ──
+import os as _os
+from fastapi.staticfiles import StaticFiles as _StaticFiles
+_upload_dir = _os.path.join(_os.path.dirname(__file__), "uploads")
+_os.makedirs(_upload_dir, exist_ok=True)
+app.mount("/uploads", _StaticFiles(directory=_upload_dir), name="uploads")
 
 # ══════════════════════════════════════════════════════════════
 # 全局依赖：Settings
@@ -228,10 +235,7 @@ app.include_router(user_router)
 app.include_router(session_router)
 app.include_router(chat_router)
 app.include_router(knowledge_router)
-
-# ── 摘要与用户画像 ──
-from api.summary import router as summary_router
-app.include_router(summary_router)
+app.include_router(case_router)
 
 # ══════════════════════════════════════════════════════════════
 # 健康检查端点

@@ -30,6 +30,9 @@ CodeAIRefused = 40301              # AI 拒绝回答
 CodeSessionNotFound = 40400        # 会话不存在
 CodeUserNotFound = 40402           # 用户不存在
 CodeLawNotFound = 40403            # 法律条文不存在
+CodeCaseNotFound = 40410           # 案件不存在
+CodeEvidenceNotFound = 40411       # 证据不存在
+CodeDocumentNotFound = 40412       # 文档不存在
 
 # ==================== 服务端错误 5xxxx ====================
 CodeInternalError = 50000          # 服务器内部错误
@@ -59,6 +62,9 @@ MESSAGES = {
     CodeSessionNotFound: "会话不存在",
     CodeUserNotFound: "用户不存在",
     CodeLawNotFound: "法律条文不存在",
+    CodeCaseNotFound: "案件不存在",
+    CodeEvidenceNotFound: "证据不存在",
+    CodeDocumentNotFound: "文档不存在",
 
     CodeInternalError: "服务器内部错误，请稍后再试",
     CodeAIServiceError: "AI 服务暂时不可用，请稍后再试",

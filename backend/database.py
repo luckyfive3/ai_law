@@ -72,6 +72,25 @@ async def _create_indexes():
     await _db.user_profiles.create_index("user_id", unique=True)
     await _db.user_profiles.create_index("updated_at")
 
+    # 案件管理集合
+    await _db.cases.create_index("user_id")
+    await _db.cases.create_index("status")
+    await _db.cases.create_index("is_deleted")
+    await _db.cases.create_index([("user_id", 1), ("created_at", -1)])
+
+    await _db.case_evidence.create_index("case_id")
+    await _db.case_evidence.create_index([("case_id", 1), ("created_at", -1)])
+
+    await _db.case_documents.create_index("case_id")
+    await _db.case_documents.create_index([("case_id", 1), ("created_at", -1)])
+
+    await _db.case_analyses.create_index("case_id")
+    await _db.case_analyses.create_index("analysis_type")
+    await _db.case_analyses.create_index([("case_id", 1), ("created_at", -1)])
+
+    await _db.case_qa.create_index("case_id")
+    await _db.case_qa.create_index([("case_id", 1), ("created_at", -1)])
+
     logger.info("MongoDB 索引创建完成")
 
 

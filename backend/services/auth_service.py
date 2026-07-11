@@ -1,12 +1,12 @@
 """
-AI法律助手 v1.0 — 认证服务
-用户注册、登录、Token刷新
+AI法律助手 v1.0 — 用户认证服务
+用户名+密码注册/登录，JWT Token 签发
 """
 import logging
 from datetime import datetime, timezone
-from typing import Dict, Optional
+from typing import Optional
 
-from passlib.context import CryptContext
+import bcrypt
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
 
@@ -15,18 +15,15 @@ from utils.jwt_utils import create_access_token, create_refresh_token, decode_to
 
 logger = logging.getLogger(__name__)
 
-# ── 密码哈希上下文 ──
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 def hash_password(password: str) -> str:
-    """对密码进行 bcrypt 哈希"""
-    return _pwd_context.hash(password)
+    """使用 bcrypt 直接哈希密码"""
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """验证密码是否匹配"""
-    return _pwd_context.verify(plain_password, hashed_password)
+    """验证密码"""
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 
 class AuthService:

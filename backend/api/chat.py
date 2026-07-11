@@ -98,6 +98,7 @@ async def send_message(
                 query=req.content,
                 category=req.category or "",
                 client_ip=client_ip,
+                case_id=req.case_id,
             ):
                 status = chunk.get("status", "")
 

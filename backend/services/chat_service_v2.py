@@ -89,6 +89,7 @@ class ChatService:
         query: str,
         category: str = "",
         client_ip: str = "",
+        case_id: str = None,
     ) -> AsyncGenerator[dict, None]:
         """
         SSE 流式对话（使用 LCEL RAG Chain）
@@ -100,6 +101,13 @@ class ChatService:
         if not self.content_safety.check(query):
             yield {"status": "error", "error": "内容包含敏感信息，请修改后重试"}
             return
+
+        # 1.5. 如果关联了案件，构建案件上下文
+        case_context = ""
+        if case_id:
+            case_context = await self._build_case_context(user_id, case_id)
+            if case_context:
+                query = f"[关联案件背景]\n{case_context}\n\n[用户问题]\n{query}"
 
         # 2. 保存用户消息
         now = datetime.now(timezone.utc).isoformat()
@@ -192,6 +200,7 @@ class ChatService:
                 "input": stats["total_input_tokens"],
                 "output": stats["total_output_tokens"],
             },
+            "laws": self._extract_law_refs(legal_context),
             "stats": stats,
         }
 
@@ -206,6 +215,7 @@ class ChatService:
         query: str,
         category: str = "",
         client_ip: str = "",
+        case_id: str = None,
     ) -> AsyncGenerator[dict, None]:
         """
         SSE 流式对话（使用结构化 Prompt 模板，兼容原有链路）
@@ -217,6 +227,12 @@ class ChatService:
             self._log_audit(user_id, client_ip, "block_query", "message", "", f"敏感内容: {query[:100]}")
             yield {"status": "error", "error": "内容包含敏感信息，请修改后重试"}
             return
+
+        # 1.5. 如果关联了案件，注入案件上下文
+        if case_id:
+            case_context = await self._build_case_context(user_id, case_id)
+            if case_context:
+                query = f"[关联案件背景]\n{case_context}\n\n[用户问题]\n{query}"
 
         # 2. 保存用户消息
         now = datetime.now(timezone.utc).isoformat()
@@ -364,6 +380,66 @@ class ChatService:
         except Exception as e:
             logger.warning(f"获取历史消息失败: {e}")
         return messages
+
+    def _extract_law_refs(self, legal_context: str) -> List[dict]:
+        """从法律上下文中提取法律引用"""
+        import re
+        refs = []
+        laws_found = re.findall(r'《([^》]+)》\s*第([^条]+)条', legal_context)
+        for law_name, article in laws_found[:5]:
+            refs.append({
+                "name": f"《{law_name}》",
+                "article": f"第{article}条",
+                "text": "",
+                "relevance": 1.0,
+            })
+        return refs
+
+    async def _build_case_context(self, user_id: str, case_id: str) -> str:
+        """
+        构建案件上下文文本，供 AI 对话时注入
+
+        Args:
+            user_id: 用户ID
+            case_id: 案件ID
+
+        Returns:
+            案件上下文字符串，如果案件不存在返回空字符串
+        """
+        try:
+            oid = ObjectId(case_id)
+            case = await self.db.cases.find_one({
+                "_id": oid,
+                "user_id": user_id,
+                "is_deleted": {"$ne": True},
+            })
+            if not case:
+                return ""
+
+            parts = []
+            parts.append(f"案件名称：{case.get('title', '未命名案件')}")
+            if case.get('case_type'):
+                parts.append(f"案件类型：{case['case_type']}")
+            if case.get('court_level'):
+                parts.append(f"审理级别：{case['court_level']}")
+            if case.get('description'):
+                parts.append(f"案件描述：{case['description']}")
+            if case.get('status'):
+                parts.append(f"案件状态：{case['status']}")
+            if case.get('win_rate'):
+                parts.append(f"预估胜诉率：{case['win_rate']}%")
+
+            # 加载最新分析摘要
+            analyses = []
+            async for a in self.db.case_analyses.find({"case_id": case_id}).sort("created_at", -1).limit(1):
+                analyses.append(a)
+            if analyses and analyses[0].get("content", {}).get("案情摘要"):
+                parts.append(f"AI案情摘要：{analyses[0]['content']['案情摘要'][:500]}")
+
+            return "\n".join(parts)
+        except Exception as e:
+            logger.warning(f"构建案件上下文失败: {e}")
+            return ""
 
     async def get_messages(self, session_id: str, offset: int = 0, limit: int = 50) -> Tuple[List[dict], int]:
         """获取消息列表"""
