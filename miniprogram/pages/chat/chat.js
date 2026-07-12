@@ -88,8 +88,9 @@ Page({
   async _sendMessage(content) {
     if (!this.data.currentSessionId) {
       try {
-        const s = await sessionService.createSession('新法律咨询', '');
-        this.setData({ currentSessionId: s.id, currentTitle: s.title || '新法律咨询' });
+        const title = content.length > 20 ? content.substring(0, 20) + '...' : content;
+        const s = await sessionService.createSession(title, '');
+        this.setData({ currentSessionId: s.id, currentTitle: title });
       } catch (e) { return; }
     }
     const userMsg = { id: 'user-' + Date.now(), role: 'user', content, richContent: textToHtml(content) };
