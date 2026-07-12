@@ -1,0 +1,148 @@
+/* ========================================
+   AI法律助手 微信小程序 — 全局样式
+   设计规范: 深蓝+金色 法律专业风格
+   ======================================== */
+
+page {
+  --color-bg: #f5f5f5;
+  --color-white: #ffffff;
+  --color-primary: #1a1a2e;
+  --color-primary-light: #16213e;
+  --color-accent: #d4a574;
+  --color-accent-light: #e8c9a0;
+  --color-text: #333333;
+  --color-text-secondary: #666666;
+  --color-text-light: #999999;
+  --color-border: #e8e8e8;
+  --color-success: #52c41a;
+  --color-warning: #faad14;
+  --color-error: #ff4d4f;
+
+  --radius-sm: 6rpx;
+  --radius-md: 12rpx;
+  --radius-lg: 20rpx;
+  --radius-round: 100rpx;
+
+  --space-xs: 8rpx;
+  --space-sm: 16rpx;
+  --space-md: 24rpx;
+  --space-lg: 32rpx;
+  --space-xl: 48rpx;
+
+  --font-xs: 22rpx;
+  --font-sm: 26rpx;
+  --font-md: 30rpx;
+  --font-lg: 34rpx;
+  --font-xl: 40rpx;
+
+  --shadow-sm: 0 2rpx 8rpx rgba(0,0,0,0.06);
+  --shadow-md: 0 4rpx 20rpx rgba(0,0,0,0.1);
+
+  background: var(--color-bg);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC",
+               "Helvetica Neue", "Microsoft YaHei", sans-serif;
+  font-size: var(--font-md);
+  color: var(--color-text);
+  line-height: 1.6;
+  box-sizing: border-box;
+}
+
+view, text, image, scroll-view, input, textarea, button, navigator {
+  box-sizing: border-box;
+}
+
+button { background: initial; }
+button:focus { outline: 0; }
+button::after { border: none; }
+
+/* ---- Flex 布局 ---- */
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.flex-1 { flex: 1; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; }
+.flex-wrap { flex-wrap: wrap; }
+
+/* ---- 间距 ---- */
+.mt-sm { margin-top: var(--space-sm); }
+.mt-md { margin-top: var(--space-md); }
+.mt-lg { margin-top: var(--space-lg); }
+.mb-sm { margin-bottom: var(--space-sm); }
+.mb-md { margin-bottom: var(--space-md); }
+.mb-lg { margin-bottom: var(--space-lg); }
+.p-md { padding: var(--space-md); }
+.px-md { padding-left: var(--space-md); padding-right: var(--space-md); }
+
+/* ---- 文本 ---- */
+.text-center { text-align: center; }
+.text-sm { font-size: var(--font-sm); }
+.text-md { font-size: var(--font-md); }
+.text-lg { font-size: var(--font-lg); }
+.text-secondary { color: var(--color-text-secondary); }
+.text-light { color: var(--color-text-light); }
+.text-accent { color: var(--color-accent); }
+.text-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.text-bold { font-weight: 600; }
+
+/* ---- 卡片 ---- */
+.card {
+  background: var(--color-white);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+
+/* ---- 按钮 ---- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 16rpx 40rpx; border-radius: var(--radius-round);
+  font-size: var(--font-md); font-weight: 500; line-height: 1; border: none;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  color: #fff;
+}
+.btn-accent {
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-light));
+  color: #fff;
+}
+.btn-outline {
+  background: transparent; color: var(--color-accent);
+  border: 2rpx solid var(--color-accent);
+}
+.btn-block { display: flex; width: 100%; }
+
+/* ---- 输入框 ---- */
+.input-wrap {
+  background: var(--color-white);
+  border: 2rpx solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+}
+
+/* ---- 空状态 ---- */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: var(--space-xl) var(--space-md);
+}
+.empty-state .icon { font-size: 80rpx; margin-bottom: var(--space-md); }
+.empty-state .title { font-size: var(--font-lg); font-weight: 600; }
+.empty-state .desc { font-size: var(--font-sm); color: var(--color-text-light); }
+
+/* ---- 加载更多 ---- */
+.load-more {
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--space-md); color: var(--color-text-light); font-size: var(--font-sm);
+}
+
+/* ---- 安全区 ---- */
+.safe-bottom {
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ---- 页面容器 ---- */
+.page-container {
+  min-height: 100vh; display: flex; flex-direction: column; background: var(--color-bg);
+}

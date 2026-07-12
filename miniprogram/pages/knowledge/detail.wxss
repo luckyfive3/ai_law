@@ -1,0 +1,10 @@
+.page { min-height:100vh; background:#f5f5f5; padding-bottom:40rpx; }
+.loading { text-align:center; padding:120rpx 0; color:#bbb; }
+.header { background:linear-gradient(135deg, #1a1a2e, #16213e); padding:40rpx 32rpx; }
+.title { font-size:38rpx; font-weight:700; color:#fff; margin-bottom:12rpx; }
+.meta { font-size:24rpx; color:rgba(255,255,255,0.5); }
+.articles { padding:24rpx 28rpx; }
+.article-card { background:#fff; border-radius:16rpx; padding:28rpx; margin-bottom:16rpx; box-shadow:0 2rpx 8rpx rgba(0,0,0,0.04); }
+.article-num { font-size:28rpx; font-weight:700; color:#d4a574; margin-bottom:12rpx; }
+.article-content { font-size:28rpx; color:#555; line-height:1.8; }
+.empty { text-align:center; padding:80rpx; color:#ccc; font-size:28rpx; }

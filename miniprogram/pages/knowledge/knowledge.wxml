@@ -1,0 +1,28 @@
+<!-- 法律知识库 -->
+<view class="page">
+  <view class="search-bar">
+    <view class="search-wrap">
+      <text class="search-ic">🔍</text>
+      <input class="search-inp" value="{{keyword}}" placeholder="搜索法律条文…" placeholder-style="color:#ccc;" bindinput="onSearchInput" bindconfirm="onSearch"/>
+    </view>
+  </view>
+
+  <scroll-view class="cat-scroll" scroll-x show-scrollbar="{{false}}">
+    <view class="cat-tag {{activeCategory === '' ? 'active' : ''}}" bindtap="onCategoryTap" data-cat="">全部</view>
+    <view wx:for="{{categories}}" wx:key="id" class="cat-tag {{activeCategory === item.id ? 'active' : ''}}" data-cat="{{item.id}}" bindtap="onCategoryTap">{{item.name}}</view>
+  </scroll-view>
+
+  <scroll-view class="doc-list" scroll-y enhanced show-scrollbar="{{false}}" bindscrolltolower="onLoadMore" lower-threshold="100">
+    <view wx:for="{{items}}" wx:key="id" class="doc-card" data-id="{{item.id}}" bindtap="onTapDoc">
+      <view class="doc-title text-ellipsis">{{item.name || item.title}}</view>
+      <view class="doc-info">
+        <text class="doc-cat" wx:if="{{item.category}}">{{item.category}}</text>
+        <text class="doc-date" wx:if="{{item.publish_date}}">{{item.publish_date}}</text>
+        <text class="doc-chunks" wx:if="{{item.chunk_count}}">{{item.chunk_count}} 项</text>
+      </view>
+      <text class="doc-arrow">→</text>
+    </view>
+    <view wx:if="{{items.length === 0 && !loading}}" class="empty">未找到相关法律文档</view>
+    <view wx:if="{{hasMore}}" class="load-more">上拉加载更多</view>
+  </scroll-view>
+</view>

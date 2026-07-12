@@ -1,0 +1,17 @@
+.page { height:100vh; background:#f5f5f5; overflow:hidden; position:relative; }
+.search-bar { position:fixed; top:0; left:0; right:0; z-index:100; background:#f5f5f5; padding:20rpx 28rpx; }
+.search-wrap { display:flex; align-items:center; background:#fff; border-radius:40rpx; padding:14rpx 24rpx; box-shadow:0 2rpx 12rpx rgba(0,0,0,0.04); }
+.search-ic { font-size:28rpx; margin-right:12rpx; }
+.search-inp { flex:1; font-size:28rpx; }
+
+.list { position:absolute; left:0; right:0; padding:0 28rpx 40rpx; box-sizing:border-box; }
+.card-row { background:#fff; border-radius:16rpx; padding:24rpx 28rpx; margin-bottom:16rpx; box-shadow:0 2rpx 8rpx rgba(0,0,0,0.04); position:relative; }
+.card-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:10rpx; }
+.card-title { flex:1; font-size:30rpx; font-weight:600; color:#333; }
+.card-time { font-size:24rpx; color:#bbb; margin-left:16rpx; white-space:nowrap; }
+.card-info { display:flex; align-items:center; }
+.card-cat { font-size:24rpx; color:#d4a574; background:rgba(212,165,116,0.1); padding:4rpx 16rpx; border-radius:6rpx; margin-right:16rpx; }
+.card-msgs { font-size:24rpx; color:#999; }
+.card-del { position:absolute; right:20rpx; bottom:20rpx; font-size:22rpx; color:#ff4d4f; padding:6rpx 14rpx; }
+.empty { text-align:center; padding:120rpx 0; color:#ccc; font-size:28rpx; }
+.load-more { text-align:center; padding:28rpx; color:#bbb; font-size:24rpx; }

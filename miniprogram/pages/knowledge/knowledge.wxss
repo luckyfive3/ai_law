@@ -1,0 +1,20 @@
+.page { min-height:100vh; background:#f5f5f5; padding-bottom:40rpx; }
+.search-bar { padding:20rpx 28rpx; }
+.search-wrap { display:flex; align-items:center; background:#fff; border-radius:40rpx; padding:14rpx 24rpx; box-shadow:0 2rpx 12rpx rgba(0,0,0,0.04); }
+.search-ic { font-size:28rpx; margin-right:12rpx; }
+.search-inp { flex:1; font-size:28rpx; }
+
+.cat-scroll { white-space:nowrap; padding:16rpx 28rpx; }
+.cat-tag { display:inline-block; padding:10rpx 28rpx; font-size:26rpx; color:#666; background:#fff; border-radius:100rpx; margin-right:12rpx; }
+.cat-tag.active { background:#1a1a2e; color:#fff; }
+
+.doc-list { padding:0 28rpx; }
+.doc-card { background:#fff; border-radius:16rpx; padding:28rpx; margin-bottom:16rpx; box-shadow:0 2rpx 8rpx rgba(0,0,0,0.04); position:relative; }
+.doc-title { font-size:30rpx; font-weight:600; color:#333; margin-bottom:12rpx; padding-right:40rpx; }
+.doc-info { display:flex; align-items:center; gap:16rpx; }
+.doc-cat { font-size:24rpx; color:#d4a574; background:rgba(212,165,116,0.1); padding:4rpx 14rpx; border-radius:6rpx; }
+.doc-date { font-size:24rpx; color:#bbb; }
+.doc-chunks { font-size:24rpx; color:#999; }
+.doc-arrow { position:absolute; right:28rpx; top:50%; transform:translateY(-50%); font-size:28rpx; color:#ccc; }
+.empty { text-align:center; padding:120rpx 0; color:#ccc; font-size:28rpx; }
+.load-more { text-align:center; padding:28rpx; color:#bbb; font-size:24rpx; }

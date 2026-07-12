@@ -1,0 +1,32 @@
+{
+  "pages": [
+    "pages/chat/chat",
+    "pages/history/history",
+    "pages/knowledge/knowledge",
+    "pages/knowledge/detail",
+    "pages/profile/profile",
+    "pages/login/login",
+    "pages/register/register"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#1a1a2e",
+    "navigationBarTitleText": "AI法律助手",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f5f5f5"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#d4a574",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      { "pagePath": "pages/chat/chat", "text": "智能咨询" },
+      { "pagePath": "pages/history/history", "text": "历史记录" },
+      { "pagePath": "pages/knowledge/knowledge", "text": "法律知识库" },
+      { "pagePath": "pages/profile/profile", "text": "我的" }
+    ]
+  },
+  "networkTimeout": { "request": 30000, "connectSocket": 30000, "downloadFile": 60000 },
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

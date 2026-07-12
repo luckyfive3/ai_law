@@ -1,0 +1,35 @@
+<!-- 个人中心 -->
+<view class="page">
+  <view class="header" style="padding-top: {{statusBarHeight + 30}}px;">
+    <view wx:if="{{isLoggedIn}}" class="user-area">
+      <view class="avatar">
+        <image wx:if="{{userInfo.avatar_url}}" src="{{userInfo.avatar_url}}" mode="aspectFill"/>
+        <text wx:else class="avatar-text">👤</text>
+      </view>
+      <view class="user-name">{{userInfo.nickname || userInfo.username || '未设置'}}</view>
+    </view>
+    <view wx:else class="user-area" bindtap="goLogin">
+      <view class="avatar"><text class="avatar-text">👤</text></view>
+      <view class="login-hint">点击登录</view>
+    </view>
+  </view>
+
+  <view class="menu-section">
+    <view class="menu-title">设置</view>
+    <view class="menu-item" bindtap="onEditProfile"><text>编辑资料</text><text class="arrow">→</text></view>
+    <view class="menu-item">
+      <text>保存聊天历史</text>
+      <switch checked="{{saveHistory}}" bindchange="onPrivacyChange" color="#d4a574"/>
+    </view>
+    <view class="menu-item" bindtap="onClearHistory"><text>清空历史记录</text><text class="arrow">→</text></view>
+  </view>
+
+  <view class="menu-section">
+    <view class="menu-title">其他</view>
+    <view class="menu-item" bindtap="onAbout"><text>关于我们</text><text class="arrow">→</text></view>
+  </view>
+
+  <view wx:if="{{isLoggedIn}}" class="logout-area">
+    <view class="logout-btn" bindtap="onLogout">退出登录</view>
+  </view>
+</view>

@@ -1,0 +1,31 @@
+<!-- 登录 -->
+<view class="login-page">
+  <view class="login-header" style="padding-top: {{statusBarHeight + 60}}px;">
+    <view class="login-logo">⚖️</view>
+    <view class="login-brand">AI法律助手</view>
+    <view class="login-slogan">您的智能法律顾问</view>
+  </view>
+
+  <view class="login-form">
+    <view class="form-row">
+      <view class="form-label">用户名</view>
+      <input class="form-input" value="{{username}}" placeholder="请输入用户名（2-50个字符）" placeholder-style="color:#bbb;" bindinput="onUsernameInput" maxlength="50"/>
+    </view>
+    <view class="form-row">
+      <view class="form-label">密码</view>
+      <input class="form-input" value="{{password}}" placeholder="请输入密码（6-100个字符）" placeholder-style="color:#bbb;" password bindinput="onPasswordInput" maxlength="100" bindconfirm="onLogin"/>
+    </view>
+
+    <view class="agreement-row" bindtap="toggleAgree">
+      <view class="checkbox {{agreeTerms ? 'checked' : ''}}"><text wx:if="{{agreeTerms}}">✓</text></view>
+      <text class="agreement-text">我已阅读并同意《用户服务协议》</text>
+    </view>
+
+    <view class="form-submit {{submitting ? 'form-submit-loading' : ''}}" bindtap="onLogin">
+      <text wx:if="{{!submitting}}">登录</text>
+      <text wx:else>登录中…</text>
+    </view>
+
+    <view class="form-footer"><text class="link-text" bindtap="goRegister">还没有账号？去注册 →</text></view>
+  </view>
+</view>

@@ -1,0 +1,17 @@
+<!-- 法条详情 -->
+<view class="page">
+  <view wx:if="{{loading}}" class="loading">加载中…</view>
+  <block wx:if="{{!loading}}">
+    <view class="header">
+      <view class="title">{{detail.name}}</view>
+      <view class="meta"><text wx:if="{{detail.year}}">颁布年份：{{detail.year}}</text></view>
+    </view>
+    <view class="articles">
+      <view wx:for="{{chunks}}" wx:key="num" class="article-card">
+        <view class="article-num">{{item.num}}</view>
+        <view class="article-content">{{item.content}}</view>
+      </view>
+      <view wx:if="{{chunks.length === 0}}" class="empty">暂无条款数据</view>
+    </view>
+  </block>
+</view>

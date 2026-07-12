@@ -1,0 +1,28 @@
+<!-- 历史记录 -->
+<view class="page">
+
+  <!-- 固定搜索栏 -->
+  <view class="search-bar">
+    <view class="search-wrap">
+      <text class="search-ic">🔍</text>
+      <input class="search-inp" value="{{keyword}}" placeholder="搜索对话记录…" placeholder-style="color:#ccc;" bindinput="onSearchInput" bindconfirm="onSearch"/>
+    </view>
+  </view>
+
+  <scroll-view class="list" style="top:{{listTop}}px; height:{{listHeight}}px;" scroll-y enhanced show-scrollbar="{{false}}" bindscrolltolower="onLoadMore" lower-threshold="120">
+    <view wx:for="{{sessions}}" wx:key="id" class="card-row" data-id="{{item.id}}" bindtap="onTapSession">
+      <view class="card-top">
+        <view class="card-title text-ellipsis">{{item.title || '新对话'}}</view>
+        <view class="card-time">{{item.updated_at_text}}</view>
+      </view>
+      <view class="card-info">
+        <text class="card-cat" wx:if="{{item.category}}">{{item.category}}</text>
+        <text class="card-msgs">{{item.msg_count || 0}} 条消息</text>
+      </view>
+      <view class="card-del" data-id="{{item.id}}" catchtap="onDelete">删除</view>
+    </view>
+    <view wx:if="{{sessions.length === 0 && !loading}}" class="empty">暂无历史会话</view>
+    <view wx:if="{{hasMore}}" class="load-more">上拉加载更多</view>
+  </scroll-view>
+
+</view>

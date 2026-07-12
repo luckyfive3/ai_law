@@ -1,0 +1,86 @@
+<!-- AI法律助手 - 智能咨询 -->
+<view class="chat-page">
+
+  <!-- 固定顶部模块选择器 -->
+  <view class="module-bar">
+    <view class="nav-icon-btn" bindtap="toggleSidebar"><text class="nav-icon-text">☰</text></view>
+    <scroll-view class="module-scroll" scroll-x show-scrollbar="{{false}}">
+      <view wx:for="{{modules}}" wx:key="value" class="module-tag {{activeModule === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="onModuleSelect">{{item.name}}</view>
+    </scroll-view>
+    <view class="nav-icon-btn" bindtap="onNewChat"><text class="nav-icon-text">＋</text></view>
+  </view>
+
+  <!-- 可滚动消息列表 -->
+  <scroll-view class="message-list" style="top:{{msgListTop}}px; height:{{scrollHeight}}px;" scroll-y enhanced show-scrollbar="{{false}}" scroll-into-view="{{scrollToId}}" scroll-with-animation bindscrolltoupper="onScrollToUpper" upper-threshold="100">
+
+    <view wx:if="{{loadingHistory}}" class="load-more"><text>加载中…</text></view>
+
+    <view wx:if="{{messages.length === 0 && !loading}}" class="welcome-section">
+      <view class="welcome-icon">⚖️</view>
+      <view class="welcome-title">您好，我是AI法律助手</view>
+      <view class="welcome-desc">基于 DeepSeek + RAGFlow 法律知识库<br/>为您提供专业法律信息参考</view>
+      <view class="welcome-questions">
+        <view wx:for="{{welcomeQuestions}}" wx:key="index" class="welcome-q-btn" data-question="{{item}}" bindtap="onQuickQuestion">{{item}}</view>
+      </view>
+    </view>
+
+    <block wx:for="{{messages}}" wx:key="id">
+      <view class="msg-row msg-user" wx:if="{{item.role === 'user'}}">
+        <view class="msg-avatar msg-avatar-user">👤</view>
+        <view class="msg-bubble msg-bubble-user"><text>{{item.content}}</text></view>
+      </view>
+      <view class="msg-row msg-ai" wx:elif="{{item.role === 'assistant'}}">
+        <view class="msg-avatar msg-avatar-ai">⚖️</view>
+        <view class="msg-bubble-wrap">
+          <view class="msg-bubble msg-bubble-ai"><rich-text nodes="{{item.richContent}}"></rich-text></view>
+          <view wx:if="{{item.laws && item.laws.length > 0}}" class="law-refs">
+            <view class="law-refs-title">📖 引用法律条文：</view>
+            <view wx:for="{{item.laws}}" wx:for-item="law" wx:key="index" class="law-ref-item">
+              <text class="law-ref-name">{{law.name}} {{law.article}}</text>
+              <text class="law-ref-text">{{law.text}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </block>
+
+    <view wx:if="{{streaming}}" class="msg-row msg-ai">
+      <view class="msg-avatar msg-avatar-ai">⚖️</view>
+      <view class="msg-bubble-wrap">
+        <view class="msg-bubble msg-bubble-ai">
+          <rich-text wx:if="{{streamingContent}}" nodes="{{streamingContent}}"></rich-text>
+          <text wx:if="{{isSearching}}" class="typing-indicator">正在检索 RAGFlow 法律知识库…</text>
+          <text wx:elif="{{!streamingContent}}" class="typing-indicator">DeepSeek 正在思考…</text>
+          <text wx:else class="typing-cursor">|</text>
+        </view>
+      </view>
+    </view>
+
+    <view id="msg-bottom" style="height:80rpx;"></view>
+  </scroll-view>
+
+  <!-- 固定底部输入区 -->
+  <view class="input-area safe-bottom">
+    <view class="input-wrapper">
+      <textarea class="chat-input" value="{{inputValue}}" placeholder="请输入您想咨询的法律问题…" placeholder-style="color:#bbb;" maxlength="{{2000}}" auto-height adjust-position="{{true}}" show-confirm-bar="{{false}}" cursor-spacing="{{20}}" bindinput="onInput" bindconfirm="onSend" disabled="{{streaming}}" />
+      <view class="send-btn {{inputValue ? 'active' : ''}}" bindtap="onSend"><text class="send-text">↑</text></view>
+    </view>
+  </view>
+
+  <!-- 侧边栏 -->
+  <view class="sidebar-mask {{showSidebar ? 'visible' : ''}}" bindtap="closeSidebar" />
+  <view class="chat-sidebar {{showSidebar ? 'visible' : ''}}">
+    <view class="sidebar-header">
+      <text class="sidebar-title">历史会话</text>
+      <view class="sidebar-new-btn" bindtap="onNewChat">新建</view>
+    </view>
+    <scroll-view class="sidebar-list" scroll-y enhanced show-scrollbar="{{false}}">
+      <view wx:for="{{sessionList}}" wx:key="id" class="sidebar-item {{currentSessionId === item.id ? 'active' : ''}}" data-id="{{item.id}}" data-title="{{item.title}}" bindtap="onSwitchSession" bindlongpress="onDeleteSession">
+        <view class="sidebar-item-title text-ellipsis">{{item.title || '新对话'}}</view>
+        <view class="sidebar-item-time">{{item.updated_at_text}}</view>
+      </view>
+      <view wx:if="{{sessionList.length === 0}}" class="sidebar-empty">暂无历史会话</view>
+    </scroll-view>
+  </view>
+
+</view>

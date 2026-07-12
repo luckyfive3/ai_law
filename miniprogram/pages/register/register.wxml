@@ -1,0 +1,35 @@
+<!-- 注册 -->
+<view class="page">
+  <view class="header" style="padding-top: {{statusBarHeight + 60}}px;">
+    <view class="logo">⚖️</view>
+    <view class="brand">AI法律助手</view>
+    <view class="slogan">创建账号，开始智能法律咨询</view>
+  </view>
+
+  <view class="form">
+    <view class="form-row">
+      <view class="label">用户名</view>
+      <input class="input" value="{{username}}" placeholder="2-50个字符" placeholder-style="color:#bbb;" bindinput="onUsernameInput" maxlength="50"/>
+    </view>
+    <view class="form-row">
+      <view class="label">密码</view>
+      <input class="input" value="{{password}}" placeholder="6-100个字符" placeholder-style="color:#bbb;" password bindinput="onPasswordInput" maxlength="100"/>
+    </view>
+    <view class="form-row">
+      <view class="label">确认密码</view>
+      <input class="input" value="{{confirmPassword}}" placeholder="再输一遍密码" placeholder-style="color:#bbb;" password bindinput="onConfirmPwdInput" maxlength="100" bindconfirm="onRegister"/>
+    </view>
+
+    <view class="agreement" bindtap="toggleAgree">
+      <view class="cb {{agreeTerms ? 'on' : ''}}"><text wx:if="{{agreeTerms}}">✓</text></view>
+      <text class="agr-text">我已阅读并同意《用户服务协议》</text>
+    </view>
+
+    <view class="btn {{submitting ? 'btn-loading' : ''}}" bindtap="onRegister">
+      <text wx:if="{{!submitting}}">注册</text>
+      <text wx:else>注册中…</text>
+    </view>
+
+    <view class="foot"><text class="link" bindtap="goLogin">← 已有账号？去登录</text></view>
+  </view>
+</view>
