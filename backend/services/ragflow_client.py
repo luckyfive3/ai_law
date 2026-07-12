@@ -277,10 +277,31 @@ class RAGFlowClient:
                     "name": name,
                     "category": category,
                     "year": year,
-                    "chunk_count": getattr(doc, "chunk_count", 0),
+                    "chunk_count": getattr(doc, "chunk_count", 0) or 0,
                     "token_count": getattr(doc, "token_count", 0),
                     "status": str(getattr(doc, "status", "0")),
                 })
+
+            # 补全真实的 chunk_count（SDK 可能返回 0）
+            if result and any(r.get("chunk_count", 0) == 0 for r in result):
+                try:
+                    import httpx as _httpx
+                    h = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
+                    async with _httpx.AsyncClient(timeout=10) as _cl:
+                        _r = await _cl.get(
+                            f"{self.base_url}/api/v1/datasets/{ds_id}/documents?page={page}&page_size={page_size}",
+                            headers=h
+                        )
+                        if _r.status_code == 200:
+                            _data = _r.json()
+                            _docs = _data.get("data", {}).get("docs", [])
+                            _chunk_map = {d["id"]: d.get("chunk_count", 0) for d in _docs}
+                            for item in result:
+                                cid = item.get("id", "")
+                                if cid in _chunk_map and _chunk_map[cid] > 0:
+                                    item["chunk_count"] = _chunk_map[cid]
+                except Exception:
+                    pass
 
             logger.info(f"获取文档列表成功: 共 {len(result)} 个文档 (page={page})")
             # 缓存精确 total（只查一次）

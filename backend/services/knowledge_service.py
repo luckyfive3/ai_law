@@ -100,34 +100,31 @@ class KnowledgeService:
             return {"items": [], "total": 0, "page": page, "page_size": page_size}
 
     async def get_law_detail(self, law_id: str) -> dict:
-        # 尝试所有数据集查找 chunks
-        chunks = []
+        # 先从所有数据集中找到该文档的名称和所属数据集
         found_name = ""
-        for ds_id in ALL_DATASET_IDS:
-            try:
-                c = await self.ragflow_client.get_document_chunks(law_id, ds_id)
-                if c:
-                    chunks = c
-                    # 同时查文档名
-                    result = await self.ragflow_client.list_documents(dataset_id=ds_id, page=1, page_size=500)
-                    for d in result.get("items", []):
-                        if d.get("id") == law_id:
-                            found_name = d.get("name", "")
-                            break
+        target_ds_id = ""
+        try:
+            all_docs = await self.ragflow_client.list_all_datasets_documents()
+            for d in all_docs:
+                if d.get("id") == law_id:
+                    found_name = d.get("name", "")
                     break
-            except Exception:
-                continue
+        except Exception:
+            pass
 
-        if not found_name:
-            # 跨所有数据集搜文档名
-            try:
-                all_docs = await self.ragflow_client.list_all_datasets_documents()
-                for d in all_docs:
-                    if d.get("id") == law_id:
-                        found_name = d.get("name", "")
+        # 用 RAGFlow SDK 的 retrieve 来间接查 chunks（更可靠）
+        chunks = []
+        if found_name:
+            # 在所有数据集中尝试获取 chunks
+            for ds_id in ALL_DATASET_IDS:
+                try:
+                    c = await self.ragflow_client.get_document_chunks(law_id, ds_id)
+                    if c:
+                        chunks = c
+                        target_ds_id = ds_id
                         break
-            except Exception:
-                pass
+                except Exception:
+                    continue
 
         if not chunks:
             laws_data = self._load_laws_data()
@@ -140,7 +137,8 @@ class KnowledgeService:
                                 "chunks": [{"content": a.get("content", "")} for a in law.get("articles", [])]}
                 except (ValueError, TypeError):
                     pass
-            raise ValueError("文档不存在或未解析")
+            if not found_name:
+                raise ValueError("文档不存在或未解析")
 
         return {"id": law_id, "name": found_name or "未知法律", "year": "", "chunks": chunks}
 
