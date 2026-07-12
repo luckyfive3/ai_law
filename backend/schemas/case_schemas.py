@@ -122,6 +122,7 @@ class DocumentCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=200, description="文档名称")
     file_url: str = Field(..., description="文件URL")
     doc_type: str = Field(..., description="文档类型")
+    doc_category: str = Field(default="", description="文件类别（起诉书/判决书/通知书/证据/辩护词/其他）")
     description: str = Field(default="", description="文档描述")
 
 

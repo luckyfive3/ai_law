@@ -141,3 +141,4 @@ node_modules/
 *~
 .env
 *.bak
+backend/uploads/

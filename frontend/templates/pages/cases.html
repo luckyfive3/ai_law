@@ -7,19 +7,16 @@
 
 {% block content %}
 <div class="cases-container">
-  <!-- 页面头部 -->
   <div class="cases-header">
     <h1>案件管理</h1>
     <button class="btn btn-primary" id="newCaseBtn">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <line x1="12" y1="5" x2="12" y2="19"/>
-        <line x1="5" y1="12" x2="19" y2="12"/>
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
       </svg>
       新建案件
     </button>
   </div>
 
-  <!-- 工具栏 -->
   <div class="cases-toolbar">
     <input type="text" class="search-input" id="caseSearch" placeholder="搜索案件名称...">
     <select id="statusFilter">
@@ -30,37 +27,14 @@
     </select>
   </div>
 
-  <!-- 案件卡片网格 -->
   <div class="cases-grid" id="casesGrid">
     <div class="loading-skeleton">
-      <div class="skeleton-card">
-        <div class="skeleton-line w60 h24"></div>
-        <div class="skeleton-line w40 h12"></div>
-        <div class="skeleton-line w80 h8"></div>
-        <div class="skeleton-line w100 h8"></div>
-      </div>
-      <div class="skeleton-card">
-        <div class="skeleton-line w60 h24"></div>
-        <div class="skeleton-line w40 h12"></div>
-        <div class="skeleton-line w80 h8"></div>
-        <div class="skeleton-line w100 h8"></div>
-      </div>
-      <div class="skeleton-card">
-        <div class="skeleton-line w60 h24"></div>
-        <div class="skeleton-line w40 h12"></div>
-        <div class="skeleton-line w80 h8"></div>
-        <div class="skeleton-line w100 h8"></div>
-      </div>
-      <div class="skeleton-card">
-        <div class="skeleton-line w60 h24"></div>
-        <div class="skeleton-line w40 h12"></div>
-        <div class="skeleton-line w80 h8"></div>
-        <div class="skeleton-line w100 h8"></div>
-      </div>
+      <div class="skeleton-card"><div class="skeleton-line w60 h24"></div><div class="skeleton-line w40 h12"></div><div class="skeleton-line w80 h8"></div></div>
+      <div class="skeleton-card"><div class="skeleton-line w60 h24"></div><div class="skeleton-line w40 h12"></div><div class="skeleton-line w80 h8"></div></div>
+      <div class="skeleton-card"><div class="skeleton-card"><div class="skeleton-line w60 h24"></div><div class="skeleton-line w40 h12"></div><div class="skeleton-line w80 h8"></div></div>
     </div>
   </div>
 
-  <!-- 分页 -->
   <div class="pagination" id="casesPagination"></div>
 </div>
 
@@ -76,12 +50,9 @@
       <div class="form-group">
         <label>案件类型</label>
         <select id="newCaseType">
-          <option value="civil">民事</option>
-          <option value="criminal">刑事</option>
-          <option value="administrative">行政</option>
-          <option value="commercial">商事</option>
-          <option value="labor">劳动</option>
-          <option value="other">其他</option>
+          <option value="civil">民事</option><option value="criminal">刑事</option>
+          <option value="administrative">行政</option><option value="commercial">商事</option>
+          <option value="labor">劳动</option><option value="other">其他</option>
         </select>
       </div>
       <div class="form-group">
@@ -92,10 +63,8 @@
         <label>法院级别</label>
         <select id="newCaseCourt">
           <option value="">请选择</option>
-          <option value="basic">基层法院</option>
-          <option value="intermediate">中级法院</option>
-          <option value="high">高级法院</option>
-          <option value="supreme">最高法院</option>
+          <option value="basic">基层法院</option><option value="intermediate">中级法院</option>
+          <option value="high">高级法院</option><option value="supreme">最高法院</option>
         </select>
       </div>
       <div class="form-group">
@@ -103,13 +72,6 @@
         <div class="tags-input-wrapper" id="tagsInputWrapper">
           <input type="text" id="tagsInput" placeholder="输入标签后按回车">
         </div>
-      </div>
-      <div class="form-group">
-        <label>上传案件文件（可选）</label>
-        <input type="file" id="caseFileInput" class="input" accept=".pdf,.doc,.docx,.txt" style="padding: var(--space-2) 0;">
-        <p style="font-size: var(--text-xs); color: var(--color-gray-500); margin-top: var(--space-1);">
-          支持 PDF、Word、TXT 格式，上传后将自动创建案件并启动 AI 分析
-        </p>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-outline" id="closeCreateModal">取消</button>

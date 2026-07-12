@@ -152,7 +152,7 @@ def _init_services(app: FastAPI) -> None:
     knowledge_service = KnowledgeService(ragflow_client=ragflow_client)
 
     # ── 案件管理服务 ──
-    case_service = CaseService(db)
+    case_service = CaseService(db, llm_service=llm_service)
 
     # ── 存入 app.state.services ──
     app.state.services = {

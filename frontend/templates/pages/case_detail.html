@@ -7,7 +7,6 @@
 
 {% block content %}
 <div class="case-detail-container">
-  <!-- 案件头部 -->
   <div id="caseDetailHeader" class="case-detail-header">
     <div class="case-detail-header-left">
       <a href="/cases" class="case-detail-back">
@@ -22,24 +21,16 @@
     </div>
   </div>
 
-  <!-- 信息栏 -->
   <div id="caseInfoBar" class="case-info-bar">
     <div style="color: var(--color-gray-500);">加载中...</div>
   </div>
 
-  <!-- Tabs 导航 -->
   <div class="tabs" id="caseTabs">
     <button class="tab-item active" data-tab="analysis">案情梳理</button>
-    <button class="tab-item" data-tab="qa">AI问答</button>
-    <button class="tab-item" data-tab="evidence-chain">证据链</button>
-    <button class="tab-item" data-tab="evidence-list">证据清单</button>
-    <button class="tab-item" data-tab="evidence">材料证据</button>
     <button class="tab-item" data-tab="documents">案件文档</button>
   </div>
 
-  <!-- Tab 内容区 -->
   <div id="caseTabContent">
-    <!-- Tab: 案情梳理 -->
     <div class="tab-content active" id="tab-analysis">
       <div class="analysis-actions">
         <button class="btn btn-outline btn-sm" onclick="CaseDetailApp.triggerAnalysis()">
@@ -50,74 +41,13 @@
         </button>
       </div>
       <div class="loading-skeleton">
-        <div class="skeleton-card">
-          <div class="skeleton-line w60 h24"></div>
-          <div class="skeleton-line w100 h8"></div>
-          <div class="skeleton-line w100 h8"></div>
-          <div class="skeleton-line w80 h8"></div>
-        </div>
+        <div class="skeleton-card"><div class="skeleton-line w60 h24"></div><div class="skeleton-line w100 h8"></div><div class="skeleton-line w100 h8"></div><div class="skeleton-line w80 h8"></div></div>
       </div>
     </div>
 
-    <!-- Tab: AI问答 -->
-    <div class="tab-content" id="tab-qa">
-      <div class="qa-container">
-        <div class="qa-list" id="qaList">
-          <div class="cases-empty-state" style="padding: var(--space-8);">
-            <div class="empty-icon">💬</div>
-            <div class="empty-title">AI案件问答</div>
-            <div class="empty-desc">在下方输入框中提出关于本案的问题，AI将为您解答</div>
-          </div>
-        </div>
-        <div class="qa-input-area">
-          <textarea id="qaInput" placeholder="输入关于本案的问题，例如：本案的争议焦点是什么？" rows="2"></textarea>
-          <button class="btn btn-primary btn-sm" id="qaSendBtn" style="flex-shrink:0;">发送</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tab: 证据链 -->
-    <div class="tab-content" id="tab-evidence-chain">
-      <div class="loading-skeleton">
-        <div class="skeleton-card">
-          <div class="skeleton-line w60 h24"></div>
-          <div class="skeleton-line w100 h8"></div>
-          <div class="skeleton-line w100 h8"></div>
-          <div class="skeleton-line w80 h8"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tab: 证据清单 -->
-    <div class="tab-content" id="tab-evidence-list">
-      <div class="loading-skeleton">
-        <div class="skeleton-card">
-          <div class="skeleton-line w60 h24"></div>
-          <div class="skeleton-line w100 h8"></div>
-          <div class="skeleton-line w100 h8"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tab: 材料证据 -->
-    <div class="tab-content" id="tab-evidence">
-      <div class="loading-skeleton">
-        <div class="skeleton-card">
-          <div class="skeleton-line w60 h24"></div>
-          <div class="skeleton-line w100 h8"></div>
-          <div class="skeleton-line w100 h8"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tab: 案件文档 -->
     <div class="tab-content" id="tab-documents">
       <div class="loading-skeleton">
-        <div class="skeleton-card">
-          <div class="skeleton-line w60 h24"></div>
-          <div class="skeleton-line w100 h8"></div>
-          <div class="skeleton-line w100 h8"></div>
-        </div>
+        <div class="skeleton-card"><div class="skeleton-line w60 h24"></div><div class="skeleton-line w100 h8"></div><div class="skeleton-line w100 h8"></div></div>
       </div>
     </div>
   </div>
