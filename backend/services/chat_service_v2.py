@@ -278,7 +278,7 @@ class ChatService:
         else:
             # 综合模式：检索全部7个知识库
             all_docs = []
-            for ds_id in set(self.CATEGORY_DATASET_MAP.values()):
+            for ds_id in list(set(self.CATEGORY_DATASET_MAP.values())) + ["e2d5546a7c5011f19855b7acec531fcb"]:
                 docs = await self._retriever._aget_relevant_documents(query, dataset_id=ds_id)
                 all_docs.extend(docs)
             # 按相关度去重排序，取 top_k

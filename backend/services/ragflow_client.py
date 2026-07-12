@@ -64,7 +64,6 @@ class RAGFlowClient:
         """按数据集独立缓存文档名，不清空已有缓存"""
         if dataset_id in self._doc_name_cache:
             return
-        self._doc_name_cache[dataset_id] = True  # 标记已加载，避免重复
         rag = self._get_rag()
         if not rag:
             return
@@ -88,15 +87,11 @@ class RAGFlowClient:
                         if len(docs) < 50:
                             break
                         page += 1
+                    self._doc_name_cache[dataset_id] = True
                     logger.info(f"数据集 {dataset_id} 已加载文档名，缓存共 {len(self._doc_name_cache)} 条")
                     break
         except Exception as e:
             logger.warning(f"加载文档名失败: {e}")
-
-    # ═══════════════════════════════════════
-    # 检索
-    # ═══════════════════════════════════════
-
     async def search(
         self,
         query: str,
@@ -224,7 +219,7 @@ class RAGFlowClient:
             return {"items": [], "total": 0, "page": page, "page_size": page_size}
 
         try:
-            datasets = rag.list_datasets()
+            datasets = await asyncio.to_thread(rag.list_datasets)
             target = None
             for d in datasets:
                 if d.id == ds_id:
@@ -236,7 +231,7 @@ class RAGFlowClient:
                 return {"items": [], "total": 0, "page": page, "page_size": page_size}
 
             # 按页获取文档
-            docs = target.list_documents(page=page, page_size=page_size) or []
+            docs = await asyncio.to_thread(target.list_documents, page=page, page_size=page_size) or []
             result = []
             for doc in docs:
                 # 从文件路径提取法律名称
@@ -296,7 +291,7 @@ class RAGFlowClient:
                 total = 0
                 tp = 1
                 while True:
-                    batch = target.list_documents(page=tp, page_size=100) or []
+                    batch = (await asyncio.to_thread(target.list_documents, page=tp, page_size=100)) or []
                     if not batch:
                         break
                     total += len(batch)
